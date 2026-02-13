@@ -1,0 +1,4 @@
+body { font-family: Arial, sans-serif; margin: 20px; }
+header h1 { color: #222; }
+form { display:flex; gap:8px; }
+#attendees { margin-top:16px; list-style:none; padding:0; }
