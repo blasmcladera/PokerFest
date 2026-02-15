@@ -10,9 +10,221 @@
       rel="stylesheet"
     />
     <link rel="stylesheet" href="css/styles.css" />
+
+    <style>
+      /* evitar scroll horizontal global */
+      html,
+      body {
+        overflow-x: hidden;
+      }
+
+      .table-wrap {
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+        border-radius: 10px;
+        margin-top: 18px;
+      }
+      .groups-table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 15px;
+      }
+      .groups-table th,
+      .groups-table td {
+        padding: 12px 14px;
+        text-align: left;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+        vertical-align: middle;
+      }
+      .groups-table thead th {
+        color: var(--muted);
+        font-size: 13px;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.6px;
+      }
+
+      /* ---------- ACTIONS ROW (botones) ---------- */
+      .actions-row {
+        display: flex;
+        gap: 12px;
+        justify-content: center;
+        align-items: center;
+        padding: 18px 12px;
+        width: 100%;
+        box-sizing: border-box;
+        flex-wrap: wrap; /* permite acomodarse sin forzar scroll */
+      }
+
+      /* Botones grandes adaptables */
+      .action-btn.large {
+        /* default: allow JS to control exact px width when possible */
+        flex: 0 0 auto;
+        min-width: 120px; /* no muy pequeño */
+        height: 76px;
+        font-size: clamp(16px, 4vw, 20px);
+        padding: 14px 20px;
+        border-radius: 16px;
+        box-sizing: border-box;
+        white-space: nowrap;
+      }
+
+      /* When JS decides they should be side-by-side but smaller, these widths will be applied inline */
+      @media (max-width: 420px) {
+        .action-btn.large {
+          height: 64px;
+          font-size: clamp(14px, 4.5vw, 18px);
+        }
+        .actions-row {
+          gap: 10px;
+          padding: 12px 10px;
+        }
+      }
+
+      /* make last column narrow and right aligned */
+      .actions-col {
+        width: 72px;
+        text-align: right;
+      }
+
+      .group-row {
+        cursor: pointer;
+        transition: background 0.12s ease;
+      }
+      .group-row:hover {
+        background: rgba(255, 255, 255, 0.01);
+      }
+
+      .members-row td {
+        background: rgba(255, 255, 255, 0.01);
+        padding: 10px 14px 18px 14px;
+      }
+
+      .member-list {
+        list-style: none;
+        padding: 0;
+        margin: 0;
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+      }
+      .member-item {
+        display: flex;
+        gap: 10px;
+        align-items: center;
+        flex-wrap: nowrap;
+        justify-content: space-between;
+      }
+
+      .member-left {
+        display: flex;
+        gap: 10px;
+        align-items: center;
+        flex: 1;
+        min-width: 0;
+      }
+      .member-right {
+        margin-left: 12px;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+
+      .member-name {
+        font-weight: 600;
+        color: var(--text);
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+
+      .badge {
+        display: inline-block;
+        padding: 6px 10px;
+        border-radius: 999px;
+        font-size: 13px;
+        font-weight: 600;
+        user-select: none;
+      }
+      .badge-gender.male {
+        background: linear-gradient(90deg, #bfe9ff, #8fd6ff);
+        color: #03212b;
+      }
+      .badge-gender.female {
+        background: linear-gradient(90deg, #ffd6eb, #ff9fd4);
+        color: #35122a;
+      }
+
+      .badge-paid.paid {
+        background: linear-gradient(90deg, #b9f6c6, #4caf50);
+        color: #07260a;
+        cursor: pointer;
+      }
+      .badge-paid.unpaid {
+        background: linear-gradient(90deg, #ffbdbd, #ff6b6b);
+        color: #3b0000;
+        cursor: pointer;
+      }
+
+      .btn-trash {
+        background: rgba(0, 0, 0, 0.45);
+        border: 1px solid rgba(255, 255, 255, 0.03);
+        border-radius: 10px;
+        padding: 6px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+      }
+      .btn-trash svg {
+        width: 18px;
+        height: 18px;
+        display: block;
+      }
+      .btn-trash .icon-path {
+        fill: #ff6b6b;
+      } /* rojo visible en fondo oscuro */
+      .btn-trash:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 6px 18px rgba(0, 0, 0, 0.6);
+      }
+      .btn-trash:active {
+        transform: translateY(0);
+      }
+
+      .caret {
+        display: inline-block;
+        margin-right: 8px;
+        transition: transform 0.15s ease;
+      }
+      .caret.open {
+        transform: rotate(90deg);
+      }
+
+      .empty-placeholder {
+        color: var(--muted);
+        padding: 28px;
+        text-align: center;
+        border: 1px dashed rgba(255, 255, 255, 0.03);
+        border-radius: 10px;
+        margin-top: 14px;
+      }
+
+      @media (max-width: 720px) {
+        .groups-table {
+          font-size: 14px;
+        }
+        .badge {
+          padding: 5px 8px;
+          font-size: 12px;
+        }
+        .actions-col {
+          width: 56px;
+        }
+      }
+    </style>
   </head>
   <body>
-    <!-- Header: título arriba a la izquierda -->
     <header class="menu-header">
       <div class="menu-inner">
         <div class="menu-left">
@@ -22,24 +234,39 @@
       </div>
     </header>
 
-    <!-- Row de acciones: centrada horizontalmente -->
+    <!-- Row de botones: ahora responsivo -->
     <div class="actions-row">
-      <button id="btnCreateGroup" class="action-btn large">Crear grupo</button>
+      <button id="btnCreateGroup" class="action-btn large">Crear</button>
       <button id="btnAddGuest" class="action-btn large">
         Agregar invitado
       </button>
     </div>
 
     <main class="menu-root">
-      <!-- Contenedor vacío principal (la grilla irá acá en el futuro) -->
       <section class="content-area">
-        <!-- por ahora vacío -->
+        <div id="groupsArea">
+          <div class="table-wrap">
+            <table id="groupsTable" class="groups-table" aria-live="polite">
+              <thead>
+                <tr>
+                  <th>Grupo</th>
+                  <th>Responsable</th>
+                  <th>Pagaron / Total</th>
+                  <th class="actions-col" aria-hidden="true">Acciones</th>
+                </tr>
+              </thead>
+              <tbody id="groupsTbody"></tbody>
+            </table>
+          </div>
+          <div id="noGroups" class="empty-placeholder" style="display: none">
+            No hay grupos todavía.
+          </div>
+        </div>
       </section>
     </main>
 
-    <!-- OVERLAY + MODALES (ocultos por defecto) -->
+    <!-- OVERLAY (modales) -->
     <div id="modalOverlay" class="modal-overlay" hidden aria-hidden="true">
-      <!-- Modal Crear Grupo -->
       <div
         id="modalCreateGroup"
         class="modal-panel"
@@ -51,8 +278,8 @@
         <form id="formCreateGroup" class="form-panel-inner">
           <h3 id="modalCreateGroupTitle">Crear grupo</h3>
           <div class="field">
-            <label for="groupName">Nombre del grupo</label>
-            <input
+            <label for="groupName">Nombre del grupo</label
+            ><input
               id="groupName"
               name="groupName"
               type="text"
@@ -60,8 +287,8 @@
             />
           </div>
           <div class="field">
-            <label for="groupResponsible">Responsable (nombre)</label>
-            <input
+            <label for="groupResponsible">Responsable (nombre)</label
+            ><input
               id="groupResponsible"
               name="groupResponsible"
               type="text"
@@ -78,10 +305,9 @@
               Confirmado</label
             >
           </div>
-
           <div class="form-actions">
-            <button type="submit" class="btn-submit">Guardar</button>
-            <button
+            <button type="submit" class="btn-submit">Crear</button
+            ><button
               type="button"
               class="btn-cancel"
               data-target="modalCreateGroup"
@@ -92,7 +318,6 @@
         </form>
       </div>
 
-      <!-- Modal Agregar Invitado -->
       <div
         id="modalAddGuest"
         class="modal-panel"
@@ -104,38 +329,57 @@
         <form id="formAddGuest" class="form-panel-inner">
           <h3 id="modalAddGuestTitle">Agregar invitado</h3>
           <div class="field">
-            <label for="guestFirst">Nombre</label>
-            <input
-              id="guestFirst"
-              name="guestFirst"
+            <label for="guestName">Nombre completo</label
+            ><input
+              id="guestName"
+              name="guestName"
               type="text"
-              placeholder="Nombre"
+              placeholder="Nombre y apellido (ej. Juan Pérez)"
             />
-          </div>
-          <div class="field">
-            <label for="guestLast">Apellido</label>
-            <input
-              id="guestLast"
-              name="guestLast"
-              type="text"
-              placeholder="Apellido"
-            />
-          </div>
-          <div class="field">
-            <label for="guestGender">Género</label>
-            <select id="guestGender" name="guestGender">
-              <option value="">-- seleccionar --</option>
-              <option value="mujer">Mujer</option>
-              <option value="hombre">Hombre</option>
-            </select>
           </div>
 
-          <!-- NUEVO: campo Grupo (select rellenado dinámicamente) -->
           <div class="field">
-            <label for="guestGroup">Grupo</label>
-            <select id="guestGroup" name="guestGroup">
-              <option value="">Sin grupo</option>
-            </select>
+            <label>Género</label>
+            <div class="user-select-wrapper">
+              <button
+                id="guestGenderToggle"
+                class="user-toggle"
+                type="button"
+                aria-haspopup="listbox"
+                aria-expanded="false"
+              >
+                <span id="guestGenderLabel">-- seleccionar --</span
+                ><span class="chev">▼</span>
+              </button>
+              <ul
+                id="guestGenderList"
+                class="user-list"
+                role="listbox"
+                hidden
+              ></ul>
+            </div>
+          </div>
+
+          <div class="field">
+            <label>Grupo</label>
+            <div class="user-select-wrapper">
+              <button
+                id="guestGroupToggle"
+                class="user-toggle"
+                type="button"
+                aria-haspopup="listbox"
+                aria-expanded="false"
+              >
+                <span id="guestGroupLabel">Sin grupo</span
+                ><span class="chev">▼</span>
+              </button>
+              <ul
+                id="guestGroupList"
+                class="user-list"
+                role="listbox"
+                hidden
+              ></ul>
+            </div>
           </div>
 
           <div class="field-inline">
@@ -146,8 +390,8 @@
           </div>
 
           <div class="form-actions">
-            <button type="submit" class="btn-submit">Agregar</button>
-            <button
+            <button type="submit" class="btn-submit">Agregar</button
+            ><button
               type="button"
               class="btn-cancel"
               data-target="modalAddGuest"
@@ -159,6 +403,76 @@
       </div>
     </div>
 
+    <!-- small script: iguala anchos de los dos botones al mayor (con límites para pantallas pequeñas) -->
+    <script>
+      function equalizeActionButtons() {
+        const row = document.querySelector(".actions-row");
+        if (!row) return;
+        const btns = Array.from(row.querySelectorAll(".action-btn.large"));
+        if (btns.length < 2) return;
+
+        // reset inline styles to measure natural widths
+        btns.forEach((b) => {
+          b.style.width = "";
+          b.style.flex = "0 0 auto";
+        });
+
+        // measure natural widths
+        const widths = btns.map((b) => {
+          // ensure it's auto-size for measurement
+          b.style.width = "auto";
+          return Math.ceil(b.getBoundingClientRect().width);
+        });
+        const maxW = Math.max(...widths);
+
+        // computed gap (fallback 12)
+        const computed = getComputedStyle(row);
+        const gap = parseFloat(computed.gap) || 12;
+
+        // available width for two buttons side-by-side
+        const available = Math.max(0, row.clientWidth - gap);
+
+        // decide final width:
+        // - if both maxW fit side-by-side -> use maxW
+        // - else try to split available in two
+        // - if split is too small (<120px) -> stack (100%)
+        let finalW;
+        if (maxW * 2 <= available) {
+          finalW = maxW;
+        } else {
+          finalW = Math.floor(available / 2);
+          if (finalW < 120) {
+            // stack vertically and use full width
+            btns.forEach((b) => {
+              b.style.flex = "1 1 100%";
+              b.style.width = "100%";
+            });
+            return;
+          }
+        }
+
+        // apply final width in px and lock flex to avoid shrinking oddities
+        btns.forEach((b) => {
+          b.style.flex = "0 0 " + finalW + "px";
+          b.style.width = finalW + "px";
+        });
+      }
+
+      // run on load and resize (debounced)
+      window.addEventListener("load", equalizeActionButtons);
+      let _eqBtnTO = null;
+      window.addEventListener("resize", () => {
+        clearTimeout(_eqBtnTO);
+        _eqBtnTO = setTimeout(equalizeActionButtons, 120);
+      });
+
+      // also re-run after fonts load (prevents measurement errors)
+      if (document.fonts && document.fonts.ready) {
+        document.fonts.ready.then(equalizeActionButtons).catch(() => {});
+      }
+    </script>
+
+    <!-- tu menu.js sigue igual (no lo incluí aquí para no duplicarlo) -->
     <script type="module" src="js/menu.js"></script>
   </body>
 </html>
