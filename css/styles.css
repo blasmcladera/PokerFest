@@ -323,3 +323,81 @@ body {
 body.no-scroll {
   overflow: hidden;
 }
+
+/* =============================
+   Scrolling responsive (mobile-friendly)
+   ============================= */
+
+/* Permite scroll vertical general si el contenido supera la altura de la pantalla */
+html,
+body {
+  /* normal: el navegador mostrará scroll si hace falta;
+     explicitamos para evitar comportamientos extraños */
+  overflow-x: auto; /* permite scroll horizontal si algo es más ancho que la ventana */
+  overflow-y: auto; /* permite scroll vertical */
+  -webkit-overflow-scrolling: touch; /* smooth scrolling en iOS */
+}
+
+/* Contenedores principales: permitir scroll vertical si tienen mucho contenido */
+.root,
+.menu-root {
+  max-height: 100vh;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* Actions row: si los botones no entran, permitir scroll horizontal */
+.actions-row {
+  overflow-x: auto;
+  overflow-y: visible;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: thin; /* Firefox: scrollbar delgada */
+  -ms-overflow-style: -ms-autohiding-scrollbar;
+  /* evitar que los children se envuelvan automáticamente (así aparece scroll) */
+  flex-wrap: nowrap;
+  padding-bottom: 10px; /* espacio para el scroll bar en algunos navegadores */
+}
+
+/* Asegurar que los botones mantengan su tamaño mínimo y se puedan scrollear */
+.actions-row .action-btn.large {
+  flex: 0 0 auto; /* no crecen ni se encogen automáticamente */
+  margin: 0 6px; /* pequeño gap al scrollear */
+}
+
+/* Estilos para la scrollbar (WebKit) */
+.actions-row::-webkit-scrollbar {
+  height: 8px;
+}
+.actions-row::-webkit-scrollbar-thumb {
+  background: rgba(229, 57, 53, 0.32);
+  border-radius: 8px;
+}
+.actions-row::-webkit-scrollbar-track {
+  background: rgba(255, 255, 255, 0.01);
+}
+
+/* Modal: si el panel es muy alto, permitir scroll interno sin salirse de la pantalla */
+.modal-panel {
+  max-height: 90vh; /* no salga de la pantalla */
+  overflow: hidden; /* el overlay controla el scroll; el panel no genera barras externas */
+}
+.form-panel-inner {
+  max-height: 86vh;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* Inputs/fields: si hay muchos campos en un modal pequeño, se puede scrollear verticalmente */
+.form-panel-inner .field {
+  min-width: 0; /* evita problemas de flexbox que impiden el scroll */
+}
+
+/* Para elementos que de verdad deben poder desplazar en ambos ejes (si los tuvieras): */
+.scrollable-both {
+  overflow: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* Pequeño ajuste responsive: si preferís permitir apilamiento en móviles en lugar de scroll,
+   mantené la media query ya existente; si querés forzar siempre scroll horizontal, eliminá
+   la media query que cambia .actions-row a columna. */

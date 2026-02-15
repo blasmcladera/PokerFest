@@ -24,9 +24,9 @@
 
     <!-- Row de acciones: centrada horizontalmente -->
     <div class="actions-row">
-      <button id="btnCreateGroup" class="action-btn large">Crear grupo.</button>
+      <button id="btnCreateGroup" class="action-btn large">Crear grupo</button>
       <button id="btnAddGuest" class="action-btn large">
-        Agregar invitado.
+        Agregar invitado
       </button>
     </div>
 
@@ -78,13 +78,9 @@
               Confirmado</label
             >
           </div>
-          <div class="form-note">
-            Por ahora este formulario no realiza ninguna acción.
-          </div>
+
           <div class="form-actions">
-            <button type="submit" class="btn-submit">
-              Guardar (no activo)
-            </button>
+            <button type="submit" class="btn-submit">Guardar</button>
             <button
               type="button"
               class="btn-cancel"
@@ -133,19 +129,24 @@
               <option value="hombre">Hombre</option>
             </select>
           </div>
+
+          <!-- NUEVO: campo Grupo (select rellenado dinámicamente) -->
+          <div class="field">
+            <label for="guestGroup">Grupo</label>
+            <select id="guestGroup" name="guestGroup">
+              <option value="">Sin grupo</option>
+            </select>
+          </div>
+
           <div class="field-inline">
             <label
               ><input type="checkbox" id="guestPaid" name="guestPaid" />
               Pagó</label
             >
           </div>
-          <div class="form-note">
-            Por ahora este formulario no realiza ninguna acción.
-          </div>
+
           <div class="form-actions">
-            <button type="submit" class="btn-submit">
-              Agregar (no activo)
-            </button>
+            <button type="submit" class="btn-submit">Agregar</button>
             <button
               type="button"
               class="btn-cancel"
