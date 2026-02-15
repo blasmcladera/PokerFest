@@ -1,4 +1,325 @@
-body { font-family: Arial, sans-serif; margin: 20px; }
-header h1 { color: #222; }
-form { display:flex; gap:8px; }
-#attendees { margin-top:16px; list-style:none; padding:0; }
+:root {
+  --bg: #0b0b0c;
+  --surface: #111214;
+  --text: #e6e6e6;
+  --muted: #a3a3a3;
+  --accent: #e53935;
+  --radius: 12px;
+  --shadow: 0 10px 30px rgba(0, 0, 0, 0.6);
+  font-family:
+    "Montserrat",
+    system-ui,
+    -apple-system,
+    "Segoe UI",
+    Roboto,
+    "Helvetica Neue",
+    Arial;
+  color-scheme: dark;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  height: 100%;
+  margin: 0;
+  background: linear-gradient(180deg, var(--bg) 0%, #070708 100%);
+  color: var(--text);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* ============================= */
+/* ---------- HOME ------------- */
+/* ============================= */
+
+.root {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 32px;
+  flex-direction: column;
+  gap: 28px;
+}
+
+.title {
+  margin: 0;
+  font-weight: 800;
+  font-size: clamp(48px, 12vw, 120px);
+  letter-spacing: 0.6px;
+  line-height: 0.94;
+  text-align: center;
+  position: relative;
+  padding-bottom: 22px;
+  text-shadow: 0 8px 30px rgba(229, 57, 53, 0.08);
+}
+
+.title::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  bottom: 6px;
+  width: clamp(80px, 22vw, 220px);
+  height: 10px;
+  background: linear-gradient(
+    90deg,
+    rgba(229, 57, 53, 0.95),
+    rgba(255, 90, 90, 0.7)
+  );
+  border-radius: 8px;
+  box-shadow: 0 6px 18px rgba(229, 57, 53, 0.12);
+}
+
+.user-select-wrapper {
+  position: relative;
+  width: 100%;
+  max-width: 420px;
+}
+
+.user-toggle {
+  width: 100%;
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid rgba(255, 255, 255, 0.04);
+  padding: 16px 18px;
+  border-radius: 14px;
+  cursor: pointer;
+  font-size: 18px;
+  backdrop-filter: blur(4px);
+}
+
+.user-list {
+  position: absolute;
+  left: 0;
+  right: 0;
+  margin-top: 12px;
+  background: #0e0e0f;
+  border-radius: 12px;
+  max-height: 260px;
+  overflow: auto;
+  padding: 8px;
+  list-style: none;
+  border: 1px solid rgba(255, 255, 255, 0.03);
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.65);
+  z-index: 60;
+}
+
+.user-item {
+  padding: 12px 14px;
+  border-radius: 10px;
+  cursor: pointer;
+  font-size: 16px;
+}
+
+.user-item:hover {
+  background: rgba(229, 57, 53, 0.06);
+}
+
+.badge-selected {
+  background: var(--accent);
+  padding: 6px 10px;
+  border-radius: 8px;
+  font-size: 13px;
+}
+
+/* CONTINUE BUTTON */
+.continue-wrapper {
+  width: 100%;
+  max-width: 420px;
+}
+
+.btn-continue {
+  width: 100%;
+  padding: 14px 20px;
+  border-radius: 14px;
+  font-size: 18px;
+  font-weight: 700;
+  background: linear-gradient(
+    90deg,
+    rgba(229, 57, 53, 0.95),
+    rgba(255, 90, 90, 0.8)
+  );
+  border: none;
+  cursor: pointer;
+}
+
+.btn-continue[disabled] {
+  background: rgba(120, 120, 120, 0.2);
+  color: var(--muted);
+  cursor: not-allowed;
+}
+
+/* ============================= */
+/* ---------- MENU ------------- */
+/* ============================= */
+
+.menu-header {
+  padding: 12px 20px;
+}
+
+.brand {
+  font-weight: 800;
+  text-decoration: none;
+  font-size: 20px;
+  color: var(--text);
+}
+
+.actions-row {
+  display: flex;
+  gap: 28px;
+  justify-content: center;
+  padding: 22px 16px 12px;
+}
+
+.action-btn.large {
+  min-width: 320px;
+  height: 80px;
+  font-size: 20px;
+  border-radius: 16px;
+  background: linear-gradient(
+    90deg,
+    rgba(229, 57, 53, 0.95),
+    rgba(255, 90, 90, 0.8)
+  );
+  border: none;
+  color: white;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+/* ============================= */
+/* ---------- MODAL ------------ */
+/* ============================= */
+
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(2, 2, 2, 0.7);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 120;
+  padding: 20px;
+  backdrop-filter: blur(6px);
+}
+
+.modal-overlay[hidden] {
+  display: none;
+}
+
+.modal-panel {
+  max-width: 720px;
+  width: 100%;
+}
+
+.modal-panel[hidden] {
+  display: none;
+}
+
+.form-panel-inner {
+  background: var(--surface);
+  border-radius: 16px;
+  padding: 30px;
+  box-shadow: 0 30px 80px rgba(0, 0, 0, 0.8);
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+/* ============================= */
+/* ----- FORMULARIOS PRO ------- */
+/* ============================= */
+
+.form-panel-inner h3 {
+  font-size: 22px;
+  font-weight: 700;
+  margin: 0 0 10px 0;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.field label {
+  font-size: 15px;
+  color: var(--muted);
+  font-weight: 600;
+}
+
+.field input,
+.field select {
+  padding: 14px 16px;
+  border-radius: 14px;
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  background: rgba(255, 255, 255, 0.02);
+  color: var(--text);
+  font-size: 16px;
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.4);
+  transition: all 0.15s ease;
+}
+
+.field input::placeholder {
+  color: rgba(255, 255, 255, 0.3);
+}
+
+.field input:focus,
+.field select:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgba(229, 57, 53, 0.15);
+  outline: none;
+}
+
+.field-inline {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 15px;
+}
+
+.field-inline input[type="checkbox"] {
+  width: 18px;
+  height: 18px;
+  accent-color: var(--accent);
+}
+
+.form-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+  margin-top: 10px;
+}
+
+.btn-submit {
+  background: linear-gradient(
+    90deg,
+    rgba(229, 57, 53, 0.95),
+    rgba(255, 90, 90, 0.8)
+  );
+  border: none;
+  padding: 12px 18px;
+  border-radius: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  color: white;
+}
+
+.btn-cancel {
+  background: transparent;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  padding: 12px 18px;
+  border-radius: 12px;
+  cursor: pointer;
+  color: var(--muted);
+}
+
+body.no-scroll {
+  overflow: hidden;
+}

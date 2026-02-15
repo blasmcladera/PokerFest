@@ -1,0 +1,163 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>Menu - Poker Fest</title>
+
+    <link
+      href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700;800&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="css/styles.css" />
+  </head>
+  <body>
+    <!-- Header: título arriba a la izquierda -->
+    <header class="menu-header">
+      <div class="menu-inner">
+        <div class="menu-left">
+          <a href="index.html" class="brand">Poker Fest</a>
+        </div>
+        <div class="menu-right"></div>
+      </div>
+    </header>
+
+    <!-- Row de acciones: centrada horizontalmente -->
+    <div class="actions-row">
+      <button id="btnCreateGroup" class="action-btn large">Crear grupo.</button>
+      <button id="btnAddGuest" class="action-btn large">
+        Agregar invitado.
+      </button>
+    </div>
+
+    <main class="menu-root">
+      <!-- Contenedor vacío principal (la grilla irá acá en el futuro) -->
+      <section class="content-area">
+        <!-- por ahora vacío -->
+      </section>
+    </main>
+
+    <!-- OVERLAY + MODALES (ocultos por defecto) -->
+    <div id="modalOverlay" class="modal-overlay" hidden aria-hidden="true">
+      <!-- Modal Crear Grupo -->
+      <div
+        id="modalCreateGroup"
+        class="modal-panel"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="modalCreateGroupTitle"
+        hidden
+      >
+        <form id="formCreateGroup" class="form-panel-inner">
+          <h3 id="modalCreateGroupTitle">Crear grupo</h3>
+          <div class="field">
+            <label for="groupName">Nombre del grupo</label>
+            <input
+              id="groupName"
+              name="groupName"
+              type="text"
+              placeholder="Ej. Mesa 1"
+            />
+          </div>
+          <div class="field">
+            <label for="groupResponsible">Responsable (nombre)</label>
+            <input
+              id="groupResponsible"
+              name="groupResponsible"
+              type="text"
+              placeholder="Ej. Juan Perez"
+            />
+          </div>
+          <div class="field-inline">
+            <label
+              ><input
+                type="checkbox"
+                id="groupConfirmed"
+                name="groupConfirmed"
+              />
+              Confirmado</label
+            >
+          </div>
+          <div class="form-note">
+            Por ahora este formulario no realiza ninguna acción.
+          </div>
+          <div class="form-actions">
+            <button type="submit" class="btn-submit">
+              Guardar (no activo)
+            </button>
+            <button
+              type="button"
+              class="btn-cancel"
+              data-target="modalCreateGroup"
+            >
+              Cerrar
+            </button>
+          </div>
+        </form>
+      </div>
+
+      <!-- Modal Agregar Invitado -->
+      <div
+        id="modalAddGuest"
+        class="modal-panel"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="modalAddGuestTitle"
+        hidden
+      >
+        <form id="formAddGuest" class="form-panel-inner">
+          <h3 id="modalAddGuestTitle">Agregar invitado</h3>
+          <div class="field">
+            <label for="guestFirst">Nombre</label>
+            <input
+              id="guestFirst"
+              name="guestFirst"
+              type="text"
+              placeholder="Nombre"
+            />
+          </div>
+          <div class="field">
+            <label for="guestLast">Apellido</label>
+            <input
+              id="guestLast"
+              name="guestLast"
+              type="text"
+              placeholder="Apellido"
+            />
+          </div>
+          <div class="field">
+            <label for="guestGender">Género</label>
+            <select id="guestGender" name="guestGender">
+              <option value="">-- seleccionar --</option>
+              <option value="mujer">Mujer</option>
+              <option value="hombre">Hombre</option>
+            </select>
+          </div>
+          <div class="field-inline">
+            <label
+              ><input type="checkbox" id="guestPaid" name="guestPaid" />
+              Pagó</label
+            >
+          </div>
+          <div class="form-note">
+            Por ahora este formulario no realiza ninguna acción.
+          </div>
+          <div class="form-actions">
+            <button type="submit" class="btn-submit">
+              Agregar (no activo)
+            </button>
+            <button
+              type="button"
+              class="btn-cancel"
+              data-target="modalAddGuest"
+            >
+              Cerrar
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <script type="module" src="js/menu.js"></script>
+  </body>
+</html>

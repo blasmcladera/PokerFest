@@ -1,27 +1,73 @@
 <!doctype html>
 <html lang="es">
-<head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Organización Evento</title>
-  <link rel="stylesheet" href="css/styles.css" />
-</head>
-<body>
-  <header>
-    <h1>Registro - Evento</h1>
-  </header>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>Poker Fest</title>
 
-  <main>
-    <section id="registration">
-      <form id="form">
-        <input type="text" id="name" placeholder="Nombre" required />
-        <input type="email" id="email" placeholder="Email" required />
-        <button type="submit">Registrar</button>
-      </form>
-      <ul id="attendees"></ul>
-    </section>
-  </main>
+    <!-- Fuente agradable -->
+    <link
+      href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700;800&display=swap"
+      rel="stylesheet"
+    />
 
-  <script src="js/script.js"></script>
-</body>
+    <link rel="stylesheet" href="css/styles.css" />
+  </head>
+  <body>
+    <main class="root">
+      <h1 class="title">Poker Fest</h1>
+
+      <div class="user-select-wrapper">
+        <button
+          id="userToggle"
+          class="user-toggle"
+          aria-haspopup="listbox"
+          aria-expanded="false"
+        >
+          <span id="userLabel">Seleccionar Usuario</span>
+          <svg
+            class="chev"
+            width="18"
+            height="10"
+            viewBox="0 0 14 8"
+            aria-hidden="true"
+          >
+            <path
+              d="M1 1l6 6 6-6"
+              stroke="currentColor"
+              stroke-width="2"
+              fill="none"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            />
+          </svg>
+        </button>
+
+        <ul
+          id="userList"
+          class="user-list"
+          role="listbox"
+          tabindex="-1"
+          aria-label="Lista de usuarios"
+          hidden
+        >
+          <!-- items generados por JS -->
+        </ul>
+      </div>
+
+      <!-- Botón continuar -->
+      <div class="continue-wrapper">
+        <button
+          id="btnContinue"
+          class="btn-continue"
+          disabled
+          aria-disabled="true"
+        >
+          Continuar
+        </button>
+      </div>
+    </main>
+
+    <script type="module" src="js/selectUser.js"></script>
+  </body>
 </html>
