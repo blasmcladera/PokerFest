@@ -401,3 +401,397 @@ body {
 /* Pequeño ajuste responsive: si preferís permitir apilamiento en móviles en lugar de scroll,
    mantené la media query ya existente; si querés forzar siempre scroll horizontal, eliminá
    la media query que cambia .actions-row a columna. */
+
+/* ============================= */
+/* TABLE / GROUPS STYLES (existing + new paid-tick styling) */
+/* ============================= */
+
+.table-wrap {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  border-radius: 10px;
+  margin-top: 18px;
+}
+.groups-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 15px;
+}
+.groups-table th,
+.groups-table td {
+  padding: 12px 14px;
+  text-align: left;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+  vertical-align: middle;
+}
+.groups-table thead th {
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+}
+
+/* ---------- ACTIONS ROW (botones) ---------- */
+.actions-row {
+  display: flex;
+  gap: 12px;
+  justify-content: center;
+  align-items: center;
+  padding: 18px 12px;
+  width: 100%;
+  box-sizing: border-box;
+  flex-wrap: wrap;
+}
+
+.action-btn.large {
+  flex: 0 0 auto;
+  min-width: 120px;
+  height: 76px;
+  font-size: clamp(16px, 4vw, 20px);
+  padding: 14px 20px;
+  border-radius: 16px;
+  box-sizing: border-box;
+  white-space: nowrap;
+}
+
+@media (max-width: 420px) {
+  .action-btn.large {
+    height: 64px;
+    font-size: clamp(14px, 4.5vw, 18px);
+  }
+  .actions-row {
+    gap: 10px;
+    padding: 12px 10px;
+  }
+}
+
+/* ---------- HEADER "Mostrar" (AHORA CENTRADO) ---------- */
+.filters-header {
+  width: 100%;
+  max-width: 1100px;
+  margin: 8px auto 0;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 0 16px;
+  justify-content: center; /* centrado */
+}
+.filters-header .label {
+  font-weight: 700;
+  color: var(--text);
+  letter-spacing: 0.4px;
+  font-size: 14px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.filters-header .decor {
+  width: 36px;
+  height: 6px;
+  border-radius: 6px;
+  background: linear-gradient(
+    90deg,
+    rgba(229, 57, 53, 0.95),
+    rgba(255, 90, 90, 0.8)
+  );
+  box-shadow: 0 6px 18px rgba(229, 57, 53, 0.08);
+}
+
+/* ---------- FILTERS ROW ---------- */
+.filters-row {
+  display: flex;
+  gap: 10px;
+  justify-content: center;
+  align-items: center;
+  padding: 10px 12px;
+  width: 100%;
+  flex-wrap: wrap;
+  margin-top: 6px;
+}
+.filter-btn {
+  background: linear-gradient(
+    90deg,
+    rgba(255, 255, 255, 0.02),
+    rgba(255, 255, 255, 0.01)
+  );
+  color: var(--text);
+  border: 1px solid rgba(255, 255, 255, 0.04);
+  padding: 8px 12px;
+  border-radius: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition:
+    box-shadow 0.12s ease,
+    transform 0.08s ease,
+    background 0.12s ease;
+  min-width: 120px;
+  text-align: center;
+}
+.filter-btn.gender.women.active {
+  background: linear-gradient(90deg, #ffd6eb, #ff9fd4);
+  color: #35122a;
+  box-shadow: 0 8px 28px rgba(255, 100, 160, 0.08);
+}
+.filter-btn.gender.men.active {
+  background: linear-gradient(90deg, #bfe9ff, #8fd6ff);
+  color: #03212b;
+  box-shadow: 0 8px 28px rgba(50, 160, 255, 0.06);
+}
+.filter-btn.paid.paid.active {
+  background: linear-gradient(90deg, #b9f6c6, #4caf50);
+  color: #07260a;
+  box-shadow: 0 8px 28px rgba(40, 200, 100, 0.06);
+}
+.filter-btn.paid.unpaid.active {
+  background: linear-gradient(90deg, #ffbdbd, #ff6b6b);
+  color: #3b0000;
+  box-shadow: 0 8px 28px rgba(255, 80, 80, 0.06);
+}
+
+/* ---------- SORT ROW (ESTILO IGUAL AL RESTO DE CAJITAS) ---------- */
+.sort-row {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  justify-content: center;
+  padding: 6px 12px 14px;
+  width: 100%;
+  flex-wrap: wrap;
+}
+.sort-label {
+  color: var(--muted);
+  font-weight: 600;
+  font-size: 14px;
+  margin-right: 6px;
+}
+
+/* -------------------------
+   SELECT: estilo para que sea igual a .user-toggle
+   ------------------------- */
+.sort-select {
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  appearance: none;
+  /* mismo look que .user-toggle */
+  background: rgba(255, 255, 255, 0.02);
+  color: var(--text);
+  border: 1px solid rgba(255, 255, 255, 0.04);
+  padding: 16px 40px 16px 18px; /* padding parecido al user-toggle y espacio para la flecha */
+  border-radius: 14px;
+  min-width: 220px;
+  font-weight: 600;
+  cursor: pointer;
+  position: relative;
+  font-size: 18px;
+  backdrop-filter: blur(4px);
+  box-shadow: none;
+  transition:
+    box-shadow 0.15s ease,
+    border-color 0.12s ease;
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' width='12' height='12'><path fill='%23a3a3a3' d='M7 10l5 5 5-5z'/></svg>");
+  background-repeat: no-repeat;
+  background-position: right 12px center;
+  background-size: 12px;
+}
+
+/* focus al select: mismo tratamiento que inputs y botones seleccionables */
+.sort-select:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 6px rgba(229, 57, 53, 0.06);
+}
+
+/* forzar estilo oscuro en las <option> cuando el navegador lo respete */
+.sort-select option {
+  background: var(--surface);
+  color: var(--text);
+}
+
+/* hide IE/Edge default arrow */
+.sort-select::-ms-expand {
+  display: none;
+}
+
+@media (max-width: 720px) {
+  .groups-table {
+    font-size: 14px;
+  }
+  .badge {
+    padding: 5px 8px;
+    font-size: 12px;
+  }
+  .actions-col {
+    width: 56px;
+  }
+  .sort-select {
+    min-width: 160px;
+    padding: 12px 36px 12px 14px;
+    font-size: 16px;
+  }
+  .filter-btn {
+    min-width: 100px;
+  }
+}
+
+/* resto (sin cambios) */
+.actions-col {
+  width: 72px;
+  text-align: right;
+}
+.group-row {
+  cursor: pointer;
+  transition: background 0.12s ease;
+}
+.group-row:hover {
+  background: rgba(255, 255, 255, 0.01);
+}
+.members-row td {
+  background: rgba(255, 255, 255, 0.01);
+  padding: 10px 14px 18px 14px;
+}
+.member-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.member-item {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  flex-wrap: nowrap;
+  justify-content: space-between;
+}
+.member-left {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  flex: 1;
+  min-width: 0;
+}
+.member-right {
+  margin-left: 12px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.member-name {
+  font-weight: 600;
+  color: var(--text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.badge {
+  display: inline-block;
+  padding: 6px 10px;
+  border-radius: 999px;
+  font-size: 13px;
+  font-weight: 600;
+  user-select: none;
+}
+.badge-gender.male {
+  background: linear-gradient(90deg, #bfe9ff, #8fd6ff);
+  color: #03212b;
+}
+.badge-gender.female {
+  background: linear-gradient(90deg, #ffd6eb, #ff9fd4);
+  color: #35122a;
+}
+.badge-paid.paid {
+  background: linear-gradient(90deg, #b9f6c6, #4caf50);
+  color: #07260a;
+  cursor: pointer;
+}
+.badge-paid.unpaid {
+  background: linear-gradient(90deg, #ffbdbd, #ff6b6b);
+  color: #3b0000;
+  cursor: pointer;
+}
+.btn-trash {
+  background: rgba(0, 0, 0, 0.45);
+  border: 1px solid rgba(255, 255, 255, 0.03);
+  border-radius: 10px;
+  padding: 6px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+.btn-trash svg {
+  width: 18px;
+  height: 18px;
+  display: block;
+}
+.btn-trash .icon-path {
+  fill: #ff6b6b;
+}
+.btn-trash:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.6);
+}
+.caret {
+  display: inline-block;
+  margin-right: 8px;
+  transition: transform 0.15s ease;
+}
+.caret.open {
+  transform: rotate(90deg);
+}
+.empty-placeholder {
+  color: var(--muted);
+  padding: 28px;
+  text-align: center;
+  border: 1px dashed rgba(255, 255, 255, 0.03);
+  border-radius: 10px;
+  margin-top: 14px;
+}
+
+/* ============================
+   NEW: group "all paid" tick styling
+   - uses --accent so it adapts to theme color
+   ============================ */
+.group-paid {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin-left: 10px;
+  width: 1.4em;
+  height: 1.4em;
+  border-radius: 999px;
+  background: rgba(
+    229,
+    57,
+    53,
+    0.08
+  ); /* subtle red background matching accent */
+  box-shadow: 0 6px 18px rgba(229, 57, 53, 0.06);
+  flex-shrink: 0;
+}
+.group-paid svg {
+  width: 0.9em;
+  height: 0.9em;
+  display: block;
+}
+.group-paid path {
+  stroke: var(--accent);
+  stroke-width: 2;
+  fill: none;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+@media (max-width: 720px) {
+  .group-paid {
+    width: 1.1em;
+    height: 1.1em;
+    margin-left: 8px;
+  }
+  .group-paid svg {
+    width: 0.8em;
+    height: 0.8em;
+  }
+}

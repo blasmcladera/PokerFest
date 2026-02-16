@@ -1,9 +1,7 @@
 // js/menu.js
 // Tabla de grupos + Sin Grupo + toggling pago + eliminación personas/grupos
-// Similar a la versión anterior, con la papelera ahora en la columna de acciones
-// Requiere: groupsService.js (createGroup, listGroups, addPersonToGroupAtomic)
-//           peopleService.js (createPerson, findPeopleByGroup)
-//           dbConfig.js (COLECCION_PERSONA, COLECCION_GRUPO), firebase.js (db)
+// Añadí: encabezado "Mostrar", select "Ordenar por" (funcional), preservación de filas abiertas
+// Requiere: groupsService.js, peopleService.js, firebase.js, dbConfig.js
 
 import {
   createGroup,
@@ -26,9 +24,7 @@ import {
   increment,
 } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 
-/* -----------------------
-   DOM refs
-   ----------------------- */
+/* DOM refs */
 const btnCreateGroup = document.getElementById("btnCreateGroup");
 const btnAddGuest = document.getElementById("btnAddGuest");
 
@@ -37,14 +33,21 @@ const modalCreate = document.getElementById("modalCreateGroup");
 const modalAddGuest = document.getElementById("modalAddGuest");
 const cancelButtons = document.querySelectorAll(".btn-cancel");
 
-/* Crear grupo refs */
+const filterWomenBtn = document.getElementById("filterWomen");
+const filterMenBtn = document.getElementById("filterMen");
+const filterPaidBtn = document.getElementById("filterPaid");
+const filterUnpaidBtn = document.getElementById("filterUnpaid");
+
+const sortSelect = document.getElementById("sortBy");
+
+/* crear grupo refs */
 const formCreateGroup = document.getElementById("formCreateGroup");
 const inputGroupName = document.getElementById("groupName");
 const inputGroupResponsible = document.getElementById("groupResponsible");
 const inputGroupConfirmed = document.getElementById("groupConfirmed");
 const submitCreateBtn = formCreateGroup.querySelector(".btn-submit");
 
-/* Agregar invitado refs */
+/* add guest refs */
 const formAddGuest = document.getElementById("formAddGuest");
 const guestName = document.getElementById("guestName");
 const guestPaid = document.getElementById("guestPaid");
@@ -55,16 +58,27 @@ const guestGroupToggle = document.getElementById("guestGroupToggle");
 const guestGroupLabel = document.getElementById("guestGroupLabel");
 const guestGroupList = document.getElementById("guestGroupList");
 
-/* Table refs */
+/* table refs */
 const groupsTbody = document.getElementById("groupsTbody");
 const noGroups = document.getElementById("noGroups");
 
-/* Dropdown state */
-let guestGenderSelected = null; // 'mujer' | 'hombre' | null
-let guestGroupSelectedId = ""; // '' == Sin grupo
+/* dropdown state */
+let guestGenderSelected = null;
+let guestGroupSelectedId = "";
 
-/* Cache members by groupId */
+/* cache: groupId -> members array */
 const groupMembersCache = {};
+
+/* map to references in DOM for in-place updates:
+   groupRowMap[groupId] = { trGroup, trMembers, tdCounts, membersContainer, caret, paidIcon } */
+const groupRowMap = {};
+
+/* filters state (tri-state):
+   genderState: 'all' | 'women' | 'men'
+   paidState: 'all' | 'paid' | 'unpaid'
+*/
+let genderState = "all";
+let paidState = "all";
 
 /* -------------------------
    Modal helpers
@@ -90,7 +104,7 @@ function closeModal() {
   closeGuestGroupList();
 }
 
-/* small UI success */
+/* button success */
 function showButtonSuccess(btn, originalText = "") {
   if (!btn) return;
   const prevHTML = btn.innerHTML;
@@ -103,7 +117,7 @@ function showButtonSuccess(btn, originalText = "") {
 }
 
 /* -------------------------
-   Dropdowns - Gender
+   Dropdowns Gender static
    ------------------------- */
 const GENDERS = [
   { value: "mujer", label: "Mujer" },
@@ -149,7 +163,7 @@ function toggleGuestGenderList() {
 }
 
 /* -------------------------
-   Dropdowns - Groups (dynamic)
+   Dropdowns Group dynamic
    ------------------------- */
 async function populateGuestGroupList() {
   guestGroupList.innerHTML = "";
@@ -207,7 +221,6 @@ function toggleGuestGroupList() {
   else closeGuestGroupList();
 }
 
-/* outside click / ESC */
 document.addEventListener("click", (e) => {
   if (
     !guestGenderList.contains(e.target) &&
@@ -226,7 +239,6 @@ document.addEventListener("keydown", (e) => {
     closeGuestGroupList();
   }
 });
-
 guestGenderToggle.addEventListener("click", (e) => {
   e.stopPropagation();
   toggleGuestGenderList();
@@ -253,7 +265,6 @@ btnAddGuest.addEventListener("click", async () => {
   guestGenderLabel.textContent = "-- seleccionar --";
   guestGroupSelectedId = "";
   guestGroupLabel.textContent = "Sin grupo";
-
   buildGuestGenderList();
   await populateGuestGroupList();
   openModal(modalAddGuest);
@@ -281,7 +292,6 @@ formCreateGroup.addEventListener("submit", async (e) => {
     const groupId = await createGroup({ nombre, responsable, confirmado });
 
     showButtonSuccess(submitCreateBtn, originalText);
-
     await renderGroupsTable();
     await populateGuestGroupList();
 
@@ -349,99 +359,8 @@ formAddGuest.addEventListener("submit", async (e) => {
 });
 
 /* -------------------------
-   Helper: toggle payment (optimistic) - update using COLECCION_PERSONA
-   ------------------------- */
-async function togglePersonPayment(personId, currentValue, groupId, tdCounts) {
-  try {
-    const members = groupMembersCache[groupId] || [];
-    const idx = members.findIndex((p) => p.id === personId);
-    if (idx >= 0) members[idx].pagado = !currentValue;
-
-    const newPaidCount = (groupMembersCache[groupId] || []).filter(
-      (m) => !!m.pagado,
-    ).length;
-    const total = (groupMembersCache[groupId] || []).length;
-    if (tdCounts) tdCounts.textContent = `${newPaidCount} / ${total}`;
-
-    const pRef = doc(db, COLECCION_PERSONA, personId);
-    await updateDoc(pRef, { pagado: !currentValue });
-  } catch (err) {
-    console.error("Error actualizando pago:", err);
-    alert("No se pudo actualizar el estado de pago: " + (err.message || err));
-    await renderGroupsTable();
-  }
-}
-
-/* -------------------------
-   Helper: delete person
-   ------------------------- */
-async function deletePerson(personId, groupId) {
-  if (!confirm("¿Eliminar invitado? Esta acción no se puede deshacer.")) return;
-  try {
-    await deleteDoc(doc(db, COLECCION_PERSONA, personId));
-
-    if (groupId && groupId !== "sin-grupo") {
-      const groupRef = doc(db, COLECCION_GRUPO, groupId);
-      await updateDoc(groupRef, {
-        miembros: arrayRemove(personId),
-        cantidadMiembros: increment(-1),
-      });
-    }
-
-    if (groupMembersCache[groupId]) {
-      groupMembersCache[groupId] = groupMembersCache[groupId].filter(
-        (p) => p.id !== personId,
-      );
-    }
-    await renderGroupsTable();
-  } catch (err) {
-    console.error("Error eliminando persona:", err);
-    alert("No se pudo eliminar la persona: " + (err.message || err));
-  }
-}
-
-/* -------------------------
-   Helper: delete group
-   ------------------------- */
-async function deleteGroup(groupId) {
-  if (
-    !confirm(
-      "¿Eliminar grupo? Los miembros pasarán a 'Sin Grupo'. Esta acción borra el grupo.",
-    )
-  )
-    return;
-  try {
-    if (groupId === "sin-grupo") {
-      alert("No se puede eliminar el grupo 'Sin Grupo'.");
-      return;
-    }
-
-    const members = groupMembersCache[groupId] || [];
-    const updates = members.map((m) => {
-      const pRef = doc(db, COLECCION_PERSONA, m.id);
-      return updateDoc(pRef, { grupoId: null, groupId: null }).catch((err) => {
-        console.error(
-          "No se pudo actualizar miembro al borrar grupo",
-          m.id,
-          err,
-        );
-      });
-    });
-    await Promise.all(updates);
-
-    await deleteDoc(doc(db, COLECCION_GRUPO, groupId));
-
-    await renderGroupsTable();
-    await populateGuestGroupList();
-  } catch (err) {
-    console.error("Error eliminando grupo:", err);
-    alert("No se pudo eliminar el grupo: " + (err.message || err));
-  }
-}
-
-/* -------------------------
-   Utility: fetch ungrouped people (checks grupoId==null and groupId==null)
-   ------------------------- */
+   Helpers: fetch ungrouped people
+*/
 async function fetchUngroupedPeople() {
   const people = [];
   try {
@@ -467,10 +386,303 @@ async function fetchUngroupedPeople() {
 }
 
 /* -------------------------
-   RENDER TABLE: prefetch members for counts + Sin Grupo
-   ------------------------- */
+   FILTER LOGIC & UTIL
+*/
+function applyFiltersToMembers(members) {
+  return members.filter((m) => {
+    const g = (m.genero || "").toString().toLowerCase();
+    let genderOk = true;
+    if (genderState === "women")
+      genderOk = g === "mujer" || g === "female" || g === "woman";
+    else if (genderState === "men")
+      genderOk = g === "hombre" || g === "male" || g === "man";
+
+    const paid = !!m.pagado;
+    let paidOk = true;
+    if (paidState === "paid") paidOk = paid;
+    else if (paidState === "unpaid") paidOk = !paid;
+
+    return genderOk && paidOk;
+  });
+}
+
+function updateFilterButtonsUI() {
+  filterWomenBtn.classList.toggle("active", genderState === "women");
+  filterMenBtn.classList.toggle("active", genderState === "men");
+  filterPaidBtn.classList.toggle("active", paidState === "paid");
+  filterUnpaidBtn.classList.toggle("active", paidState === "unpaid");
+}
+
+/* gender tri-state handlers (exclusive between men/women) */
+filterWomenBtn.addEventListener("click", async () => {
+  if (genderState === "women") genderState = "all";
+  else genderState = "women";
+  updateFilterButtonsUI();
+  updateAllCountsAndOpenLists();
+});
+filterMenBtn.addEventListener("click", async () => {
+  if (genderState === "men") genderState = "all";
+  else genderState = "men";
+  updateFilterButtonsUI();
+  updateAllCountsAndOpenLists();
+});
+
+/* paid tri-state handlers (exclusive between paid/unpaid) */
+filterPaidBtn.addEventListener("click", async () => {
+  if (paidState === "paid") paidState = "all";
+  else paidState = "paid";
+  updateFilterButtonsUI();
+  updateAllCountsAndOpenLists();
+});
+filterUnpaidBtn.addEventListener("click", async () => {
+  if (paidState === "unpaid") paidState = "all";
+  else paidState = "unpaid";
+  updateFilterButtonsUI();
+  updateAllCountsAndOpenLists();
+});
+
+/* -------------------------
+   Toggle payment (optimistic)
+*/
+async function togglePersonPayment(personId, currentValue, groupId, tdCounts) {
+  try {
+    const members = groupMembersCache[groupId] || [];
+    const idx = members.findIndex((p) => p.id === personId);
+    if (idx >= 0) members[idx].pagado = !currentValue;
+
+    const visible = applyFiltersToMembers(groupMembersCache[groupId] || []);
+    const paidCount = visible.filter((x) => !!x.pagado).length;
+    const total = visible.length;
+    if (tdCounts) tdCounts.textContent = `${paidCount} / ${total}`;
+
+    // Update group-level tick state after optimistic update
+    updateAllCountsAndOpenLists();
+
+    const pRef = doc(db, COLECCION_PERSONA, personId);
+    await updateDoc(pRef, { pagado: !currentValue });
+  } catch (err) {
+    console.error("Error actualizando pago:", err);
+    alert("No se pudo actualizar el estado de pago: " + (err.message || err));
+    await renderGroupsTable();
+  }
+}
+
+/* -------------------------
+   Delete person / group
+*/
+async function deletePerson(personId, groupId) {
+  if (!confirm("¿Eliminar invitado? Esta acción no se puede deshacer.")) return;
+  try {
+    await deleteDoc(doc(db, COLECCION_PERSONA, personId));
+    if (groupId && groupId !== "sin-grupo") {
+      const groupRef = doc(db, COLECCION_GRUPO, groupId);
+      await updateDoc(groupRef, {
+        miembros: arrayRemove(personId),
+        cantidadMiembros: increment(-1),
+      });
+    }
+    if (groupMembersCache[groupId])
+      groupMembersCache[groupId] = groupMembersCache[groupId].filter(
+        (p) => p.id !== personId,
+      );
+    await renderGroupsTable();
+  } catch (err) {
+    console.error("Error eliminando persona:", err);
+    alert("No se pudo eliminar la persona: " + (err.message || err));
+  }
+}
+
+async function deleteGroup(groupId) {
+  if (
+    !confirm(
+      "¿Eliminar grupo? Los miembros pasarán a 'Sin Grupo'. Esta acción borra el grupo.",
+    )
+  )
+    return;
+  try {
+    if (groupId === "sin-grupo") {
+      alert("No se puede eliminar el grupo 'Sin Grupo'.");
+      return;
+    }
+    const members = groupMembersCache[groupId] || [];
+    const updates = members.map((m) => {
+      const pRef = doc(db, COLECCION_PERSONA, m.id);
+      return updateDoc(pRef, { grupoId: null, groupId: null }).catch((err) =>
+        console.error(
+          "No se pudo actualizar miembro al borrar grupo",
+          m.id,
+          err,
+        ),
+      );
+    });
+    await Promise.all(updates);
+    await deleteDoc(doc(db, COLECCION_GRUPO, groupId));
+    await renderGroupsTable();
+    await populateGuestGroupList();
+  } catch (err) {
+    console.error("Error eliminando grupo:", err);
+    alert("No se pudo eliminar el grupo: " + (err.message || err));
+  }
+}
+
+/* -------------------------
+   updateAllCountsAndOpenLists (in-place update without full rerender)
+   — also updates the "all paid" tick icon visibility
+*/
+function updateAllCountsAndOpenLists() {
+  Object.keys(groupRowMap).forEach((groupId) => {
+    const info = groupRowMap[groupId];
+    if (!info) return;
+    const members = groupMembersCache[groupId] || [];
+    const visible = applyFiltersToMembers(members);
+    info.tdCounts.textContent = `${visible.filter((m) => !!m.pagado).length} / ${visible.length}`;
+
+    // Update the paid-tick icon: show only if group has at least one member and ALL members are pagado
+    const allPaid = members.length > 0 && members.every((m) => !!m.pagado);
+    if (info.paidIcon) {
+      info.paidIcon.style.display = allPaid ? "inline-flex" : "none";
+    }
+
+    if (!info.trMembers.hidden) {
+      const container = info.membersContainer;
+      container.innerHTML = "";
+      const ul = document.createElement("ul");
+      ul.className = "member-list";
+      visible.forEach((m) => {
+        const li = document.createElement("li");
+        li.className = "member-item";
+        const left = document.createElement("div");
+        left.className = "member-left";
+        const nameSpan = document.createElement("span");
+        nameSpan.className = "member-name";
+        nameSpan.textContent = m.nombre || m.name || m.id;
+        const genderBadge = document.createElement("span");
+        genderBadge.className =
+          "badge badge-gender " +
+          (m.genero === "hombre"
+            ? "male"
+            : m.genero === "mujer"
+              ? "female"
+              : "");
+        genderBadge.textContent = m.genero
+          ? m.genero === "hombre"
+            ? "Hombre"
+            : "Mujer"
+          : "—";
+        const paidBadge = document.createElement("span");
+        paidBadge.className =
+          "badge badge-paid " + (m.pagado ? "paid" : "unpaid");
+        paidBadge.textContent = m.pagado ? "Pagó" : "No pagó";
+        paidBadge.style.cursor = "pointer";
+        paidBadge.addEventListener("click", async (ev) => {
+          ev.stopPropagation();
+          const current = !!m.pagado;
+          const allMembers = groupMembersCache[groupId] || [];
+          const idx = allMembers.findIndex((x) => x.id === m.id);
+          if (idx >= 0) allMembers[idx].pagado = !current;
+          m.pagado = !current;
+          paidBadge.classList.toggle("paid", m.pagado);
+          paidBadge.classList.toggle("unpaid", !m.pagado);
+          paidBadge.textContent = m.pagado ? "Pagó" : "No pagó";
+          const newVisible = applyFiltersToMembers(
+            groupMembersCache[groupId] || [],
+          );
+          info.tdCounts.textContent = `${newVisible.filter((x) => !!x.pagado).length} / ${newVisible.length}`;
+          try {
+            await togglePersonPayment(m.id, current, groupId, info.tdCounts);
+          } catch (e) {
+            console.error(e);
+          }
+        });
+
+        left.appendChild(nameSpan);
+        left.appendChild(genderBadge);
+        left.appendChild(paidBadge);
+
+        const right = document.createElement("div");
+        right.className = "member-right";
+        const btnDelPerson = document.createElement("button");
+        btnDelPerson.className = "btn-trash";
+        btnDelPerson.title = "Eliminar invitado";
+        btnDelPerson.innerHTML = `<svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path class="icon-path" d="M9 3h6l1 1h4v2H4V4h4l1-1zm-1 6v9a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2V9H8z"/></svg>`;
+        btnDelPerson.addEventListener("click", (ev) => {
+          ev.stopPropagation();
+          deletePerson(m.id, groupId);
+        });
+        right.appendChild(btnDelPerson);
+
+        li.appendChild(left);
+        li.appendChild(right);
+        ul.appendChild(li);
+      });
+      container.appendChild(ul);
+    }
+  });
+}
+
+/* -------------------------
+   Sorting helper: compute visible counts (used for ordering)
+   sortBy: 'name'|'members'|'paid'
+   NOW: groups where ALL members are pagado go to top.
+   Within "all-paid" and "not-all-paid" groups, apply the selected sort.
+*/
+function sortGroupsList(groups) {
+  const sortBy = sortSelect && sortSelect.value ? sortSelect.value : "name";
+  // compute helper values
+  const enriched = groups.map((g) => {
+    const members = groupMembersCache[g.id] || [];
+    const visible = applyFiltersToMembers(members);
+    const paidCount = visible.filter((m) => !!m.pagado).length;
+    const allPaid = members.length > 0 && members.every((m) => !!m.pagado);
+    return {
+      group: g,
+      visibleCount: visible.length,
+      paidCount,
+      nameLower: (g.nombre || g.name || "").toString().toLowerCase(),
+      allPaid,
+    };
+  });
+
+  // primary sort: allPaid groups first
+  enriched.sort((a, b) => {
+    if (a.allPaid && !b.allPaid) return -1;
+    if (!a.allPaid && b.allPaid) return 1;
+    // if both have same allPaid value, fallback to selected sort
+    if (sortBy === "name") {
+      return a.nameLower.localeCompare(b.nameLower);
+    } else if (sortBy === "members") {
+      const diff = b.visibleCount - a.visibleCount;
+      if (diff !== 0) return diff;
+      return a.nameLower.localeCompare(b.nameLower);
+    } else if (sortBy === "paid") {
+      const diff = b.paidCount - a.paidCount;
+      if (diff !== 0) return diff;
+      return a.nameLower.localeCompare(b.nameLower);
+    }
+    // default fallback
+    return a.nameLower.localeCompare(b.nameLower);
+  });
+
+  return enriched.map((e) => e.group);
+}
+
+/* -------------------------
+   Render whole table (initial / structural changes)
+   Captura grupos abiertos antes de rerender para preservarlos.
+*/
 async function renderGroupsTable() {
+  // capture open groups to restore after full rebuild
+  const openGroupEls = document.querySelectorAll(
+    'tr.group-row[aria-expanded="true"]',
+  );
+  const openGroups = new Set(
+    Array.from(openGroupEls).map((el) => el.getAttribute("data-group-id")),
+  );
+
   groupsTbody.innerHTML = "";
+  // clear map
+  Object.keys(groupRowMap).forEach((k) => delete groupRowMap[k]);
+
   try {
     const groups = await listGroups();
     if (!groups) {
@@ -478,6 +690,7 @@ async function renderGroupsTable() {
       return;
     }
 
+    // load members for each group in parallel
     const memberPromises = groups.map((g) =>
       findPeopleByGroup(g.id).catch(() => []),
     );
@@ -490,13 +703,16 @@ async function renderGroupsTable() {
     );
     if (ungrouped.length > 0) groupMembersCache["sin-grupo"] = ungrouped;
 
-    const groupsToRender = groups.slice();
+    // prepare groups to render and sort them using current sortSelect and visible counts
+    const groupsToRenderRaw = groups.slice();
     if (ungrouped.length > 0)
-      groupsToRender.push({
+      groupsToRenderRaw.push({
         id: "sin-grupo",
         nombre: "Sin Grupo",
         responsable: "",
       });
+
+    const groupsToRender = sortGroupsList(groupsToRenderRaw);
 
     if (groupsToRender.length === 0) {
       noGroups.style.display = "block";
@@ -512,32 +728,37 @@ async function renderGroupsTable() {
       trGroup.className = "group-row";
       trGroup.setAttribute("data-group-id", g.id);
       trGroup.setAttribute("role", "button");
-      trGroup.setAttribute("aria-expanded", "false");
+      const isOpen = openGroups.has(g.id);
+      trGroup.setAttribute("aria-expanded", isOpen ? "true" : "false");
 
-      // Grupo cell (caret + name)
       const tdGroup = document.createElement("td");
       const caret = document.createElement("span");
-      caret.className = "caret";
+      caret.className = "caret" + (isOpen ? " open" : "");
       caret.textContent = "▶";
       tdGroup.appendChild(caret);
       const nameSpan = document.createElement("span");
       nameSpan.textContent = " " + (g.nombre || g.name || g.id);
       tdGroup.appendChild(nameSpan);
+
+      // compute "all paid" for the full group's members (not filtered)
+      const allPaid = members.length > 0 && members.every((m) => !!m.pagado);
+      const paidIcon = document.createElement("span");
+      paidIcon.className = "group-paid";
+      paidIcon.innerHTML = `<svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" aria-hidden="true" focusable="false"><path d="M4 12l4 4L20 6"/></svg>`;
+      paidIcon.style.display = allPaid ? "inline-flex" : "none";
+      tdGroup.appendChild(paidIcon);
+
       trGroup.appendChild(tdGroup);
 
-      // Responsable
       const tdResp = document.createElement("td");
       tdResp.textContent = g.responsable || "";
       trGroup.appendChild(tdResp);
 
-      // Counts (paid/total)
-      const paidCount = members.filter((m) => !!m.pagado).length;
-      const totalCount = members.length;
+      const visible = applyFiltersToMembers(members);
       const tdCounts = document.createElement("td");
-      tdCounts.textContent = `${paidCount} / ${totalCount}`;
+      tdCounts.textContent = `${visible.filter((m) => !!m.pagado).length} / ${visible.length}`;
       trGroup.appendChild(tdCounts);
 
-      // Actions column (trash for group)
       const tdActions = document.createElement("td");
       tdActions.className = "actions-col";
       tdActions.style.textAlign = "right";
@@ -556,45 +777,129 @@ async function renderGroupsTable() {
 
       groupsTbody.appendChild(trGroup);
 
-      // members row hidden
+      // members row
       const trMembers = document.createElement("tr");
       trMembers.className = "members-row";
-      trMembers.hidden = true;
+      trMembers.hidden = !isOpen;
       const tdMembersWrap = document.createElement("td");
       tdMembersWrap.colSpan = 4;
       tdMembersWrap.innerHTML = `<div class="member-placeholder" data-group-id="${g.id}"></div>`;
       trMembers.appendChild(tdMembersWrap);
       groupsTbody.appendChild(trMembers);
 
-      // click toggles expand/collapse
-      trGroup.addEventListener("click", async () => {
-        const isOpen = trGroup.getAttribute("aria-expanded") === "true";
-        if (isOpen) {
+      const membersContainer = tdMembersWrap.querySelector(
+        ".member-placeholder",
+      );
+      groupRowMap[g.id] = {
+        trGroup,
+        trMembers,
+        tdCounts,
+        membersContainer,
+        caret,
+        paidIcon,
+      };
+
+      // if group should be open, render members synchronously (no flicker)
+      if (isOpen) {
+        const visibleMembers = applyFiltersToMembers(members);
+        membersContainer.innerHTML = "";
+        const ul = document.createElement("ul");
+        ul.className = "member-list";
+        visibleMembers.forEach((m) => {
+          const li = document.createElement("li");
+          li.className = "member-item";
+          const left = document.createElement("div");
+          left.className = "member-left";
+          const nameSpan = document.createElement("span");
+          nameSpan.className = "member-name";
+          nameSpan.textContent = m.nombre || m.name || m.id;
+          const genderBadge = document.createElement("span");
+          genderBadge.className =
+            "badge badge-gender " +
+            (m.genero === "hombre"
+              ? "male"
+              : m.genero === "mujer"
+                ? "female"
+                : "");
+          genderBadge.textContent = m.genero
+            ? m.genero === "hombre"
+              ? "Hombre"
+              : "Mujer"
+            : "—";
+          const paidBadge = document.createElement("span");
+          paidBadge.className =
+            "badge badge-paid " + (m.pagado ? "paid" : "unpaid");
+          paidBadge.textContent = m.pagado ? "Pagó" : "No pagó";
+          paidBadge.style.cursor = "pointer";
+
+          paidBadge.addEventListener("click", async (ev) => {
+            ev.stopPropagation();
+            const current = !!m.pagado;
+            const allMembers = groupMembersCache[g.id] || [];
+            const idx = allMembers.findIndex((x) => x.id === m.id);
+            if (idx >= 0) allMembers[idx].pagado = !current;
+            m.pagado = !current;
+            paidBadge.classList.toggle("paid", m.pagado);
+            paidBadge.classList.toggle("unpaid", !m.pagado);
+            paidBadge.textContent = m.pagado ? "Pagó" : "No pagó";
+            const newVisible = applyFiltersToMembers(
+              groupMembersCache[g.id] || [],
+            );
+            tdCounts.textContent = `${newVisible.filter((x) => !!x.pagado).length} / ${newVisible.length}`;
+            try {
+              await togglePersonPayment(m.id, current, g.id, tdCounts);
+            } catch (e) {
+              console.error(e);
+            }
+          });
+
+          left.appendChild(nameSpan);
+          left.appendChild(genderBadge);
+          left.appendChild(paidBadge);
+
+          const right = document.createElement("div");
+          right.className = "member-right";
+          const btnDelPerson = document.createElement("button");
+          btnDelPerson.className = "btn-trash";
+          btnDelPerson.title = "Eliminar invitado";
+          btnDelPerson.innerHTML = `<svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path class="icon-path" d="M9 3h6l1 1h4v2H4V4h4l1-1zm-1 6v9a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2V9H8z"/></svg>`;
+          btnDelPerson.addEventListener("click", (ev) => {
+            ev.stopPropagation();
+            deletePerson(m.id, g.id);
+          });
+          right.appendChild(btnDelPerson);
+
+          li.appendChild(left);
+          li.appendChild(right);
+          ul.appendChild(li);
+        });
+        membersContainer.appendChild(ul);
+      }
+
+      // click to expand/collapse (in-place)
+      trGroup.addEventListener("click", (e) => {
+        const isNowOpen = trMembers.hidden === false;
+        if (isNowOpen) {
           trGroup.setAttribute("aria-expanded", "false");
-          caret.classList.remove("open");
+          groupRowMap[g.id].caret.classList.remove("open");
           trMembers.hidden = true;
         } else {
           trGroup.setAttribute("aria-expanded", "true");
-          caret.classList.add("open");
-
+          groupRowMap[g.id].caret.classList.add("open");
+          // render members synchronously from cache
           const membersLocal = groupMembersCache[g.id] || [];
-          const container = tdMembersWrap.querySelector(".member-placeholder");
-          container.innerHTML = "";
+          const visibleMembers = applyFiltersToMembers(membersLocal);
+          membersContainer.innerHTML = "";
           const ul = document.createElement("ul");
           ul.className = "member-list";
-
-          membersLocal.forEach((m) => {
+          visibleMembers.forEach((m) => {
             const li = document.createElement("li");
             li.className = "member-item";
-
-            // left part: name + badges
             const left = document.createElement("div");
             left.className = "member-left";
-
             const nameSpan = document.createElement("span");
             nameSpan.className = "member-name";
             nameSpan.textContent = m.nombre || m.name || m.id;
-
             const genderBadge = document.createElement("span");
             genderBadge.className =
               "badge badge-gender " +
@@ -608,22 +913,39 @@ async function renderGroupsTable() {
                 ? "Hombre"
                 : "Mujer"
               : "—";
-
             const paidBadge = document.createElement("span");
             paidBadge.className =
               "badge badge-paid " + (m.pagado ? "paid" : "unpaid");
             paidBadge.textContent = m.pagado ? "Pagó" : "No pagó";
             paidBadge.style.cursor = "pointer";
-            paidBadge.setAttribute("data-person-id", m.id);
+
+            paidBadge.addEventListener("click", async (ev) => {
+              ev.stopPropagation();
+              const current = !!m.pagado;
+              const allMembers = groupMembersCache[g.id] || [];
+              const idx = allMembers.findIndex((x) => x.id === m.id);
+              if (idx >= 0) allMembers[idx].pagado = !current;
+              m.pagado = !current;
+              paidBadge.classList.toggle("paid", m.pagado);
+              paidBadge.classList.toggle("unpaid", !m.pagado);
+              paidBadge.textContent = m.pagado ? "Pagó" : "No pagó";
+              const newVisible = applyFiltersToMembers(
+                groupMembersCache[g.id] || [],
+              );
+              tdCounts.textContent = `${newVisible.filter((x) => !!x.pagado).length} / ${newVisible.length}`;
+              try {
+                await togglePersonPayment(m.id, current, g.id, tdCounts);
+              } catch (e) {
+                console.error(e);
+              }
+            });
 
             left.appendChild(nameSpan);
             left.appendChild(genderBadge);
             left.appendChild(paidBadge);
 
-            // right part: trash button (aligned to right)
             const right = document.createElement("div");
             right.className = "member-right";
-
             const btnDelPerson = document.createElement("button");
             btnDelPerson.className = "btn-trash";
             btnDelPerson.title = "Eliminar invitado";
@@ -632,53 +954,28 @@ async function renderGroupsTable() {
               ev.stopPropagation();
               deletePerson(m.id, g.id);
             });
-
             right.appendChild(btnDelPerson);
-
-            // attach toggle payment on the paidBadge (optimistic)
-            paidBadge.addEventListener("click", async (ev) => {
-              ev.stopPropagation();
-              const personId = m.id;
-              const current = !!m.pagado;
-
-              // optimistic UI
-              m.pagado = !current;
-              paidBadge.classList.toggle("paid", m.pagado);
-              paidBadge.classList.toggle("unpaid", !m.pagado);
-              paidBadge.textContent = m.pagado ? "Pagó" : "No pagó";
-
-              // update counts
-              const newPaidCount = (groupMembersCache[g.id] || []).filter(
-                (x) => !!x.pagado,
-              ).length;
-              tdCounts.textContent = `${newPaidCount} / ${groupMembersCache[g.id].length}`;
-
-              // persist
-              try {
-                await togglePersonPayment(personId, current, g.id, tdCounts);
-              } catch (err) {
-                console.error(err);
-              }
-            });
 
             li.appendChild(left);
             li.appendChild(right);
             ul.appendChild(li);
           });
 
-          container.appendChild(ul);
+          membersContainer.appendChild(ul);
           trMembers.hidden = false;
           trMembers.scrollIntoView({ behavior: "smooth", block: "nearest" });
         }
       });
-    }
+    } // end for
   } catch (err) {
     console.error("Error cargando tabla de grupos:", err);
     groupsTbody.innerHTML = `<tr><td colspan="4">Error cargando datos</td></tr>`;
   }
 }
 
-/* Prevent default for other forms */
+/* -------------------------
+   Prevent default for forms not used
+*/
 document.querySelectorAll("form").forEach((f) => {
   if (f.id === "formCreateGroup" || f.id === "formAddGuest") return;
   f.addEventListener("submit", (e) => e.preventDefault());
@@ -702,9 +999,17 @@ document.addEventListener("keydown", (e) => {
   if (e.key === "Escape") closeModal();
 });
 
+/* -------------------------
+   Sort change handler
+*/
+sortSelect.addEventListener("change", async () => {
+  await renderGroupsTable();
+});
+
 /* Init */
 (async function init() {
   buildGuestGenderList();
+  updateFilterButtonsUI();
   await populateGuestGroupList();
   await renderGroupsTable();
 })();
