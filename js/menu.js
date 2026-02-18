@@ -529,7 +529,7 @@ formCreateGroup.addEventListener("submit", async (e) => {
   const responsable = inputGroupResponsible.value
     ? inputGroupResponsible.value.trim()
     : "";
-  const confirmado = false;
+  const confirmado = !!inputGroupConfirmed.checked;
   if (!nombre) {
     alert("El nombre del grupo es obligatorio.");
     return;
@@ -802,91 +802,197 @@ async function promptRenameGroup(groupId, currentName) {
 }
 
 /**
- * Remove any existing floating move menu
+ * Remove any existing floating move menu / modal
  */
 function removeExistingMoveMenu() {
-  const existing = document.getElementById("moveMenu");
-  if (existing) existing.remove();
+  const existingMenu = document.getElementById("moveMenu");
+  if (existingMenu) existingMenu.remove();
+  const existingOverlay = document.getElementById("moveModalOverlay");
+  if (existingOverlay) existingOverlay.remove();
+  // restore scroll if we had disabled it
+  document.body.classList.remove("no-scroll");
 }
 
 /**
- * Show a small floating menu to move a guest to another group.
- * Positions to the left if there isn't enough room on the right.
+ * Show a centered modal to move a guest to another group.
+ * The background becomes semi-opaque and the modal is centered.
  */
 async function showMoveGuestMenu(buttonEl, personId, currentGroupId) {
-  // remove any existing menu
+  // remove any existing menu/modal
   removeExistingMoveMenu();
 
-  const menu = document.createElement("div");
-  menu.id = "moveMenu";
-  menu.className = "move-menu";
-  menu.tabIndex = -1;
+  // create overlay
+  const overlay = document.createElement("div");
+  overlay.id = "moveModalOverlay";
+  overlay.setAttribute("role", "dialog");
+  overlay.setAttribute("aria-modal", "true");
+  overlay.style.position = "fixed";
+  overlay.style.inset = "0";
+  overlay.style.background = "rgba(0,0,0,0.6)";
+  overlay.style.display = "flex";
+  overlay.style.alignItems = "center";
+  overlay.style.justifyContent = "center";
+  overlay.style.zIndex = 12000;
+  overlay.style.padding = "20px";
 
-  // build options
-  const optSin = document.createElement("div");
-  optSin.className = "move-option";
-  optSin.textContent = "Sin grupo";
-  optSin.addEventListener("click", async (e) => {
+  // create panel
+  const panel = document.createElement("div");
+  panel.id = "moveMenu";
+  panel.className = "move-menu-panel";
+  panel.style.minWidth = "320px";
+  panel.style.maxWidth = "720px";
+  panel.style.width = "min(680px, 96%)";
+  panel.style.background = "var(--surface, #111214)";
+  panel.style.color = "var(--text, #e6e6e6)";
+  panel.style.borderRadius = "12px";
+  panel.style.boxShadow = "0 30px 80px rgba(0,0,0,0.6)";
+  panel.style.padding = "18px";
+  panel.style.boxSizing = "border-box";
+  panel.style.maxHeight = "80vh";
+  panel.style.overflow = "auto";
+  panel.style.position = "relative";
+
+  // header
+  const header = document.createElement("div");
+  header.style.display = "flex";
+  header.style.alignItems = "center";
+  header.style.justifyContent = "space-between";
+  header.style.marginBottom = "12px";
+
+  const title = document.createElement("div");
+  title.textContent = "Mover invitado";
+  title.style.fontWeight = "700";
+  title.style.fontSize = "18px";
+  header.appendChild(title);
+
+  const closeBtn = document.createElement("button");
+  closeBtn.className = "btn-close-move";
+  closeBtn.innerHTML = "✕";
+  closeBtn.style.background = "transparent";
+  closeBtn.style.border = "none";
+  closeBtn.style.color = "var(--muted, #a3a3a3)";
+  closeBtn.style.fontSize = "18px";
+  closeBtn.style.cursor = "pointer";
+  closeBtn.addEventListener("click", (e) => {
     e.stopPropagation();
-    await moveGuestToGroup(personId, currentGroupId, null);
-    menu.remove();
+    removeExistingMoveMenu();
   });
-  menu.appendChild(optSin);
+  header.appendChild(closeBtn);
 
+  panel.appendChild(header);
+
+  // description / current location
+  const desc = document.createElement("div");
+  desc.textContent = "Seleccioná el grupo destino:";
+  desc.style.marginBottom = "12px";
+  desc.style.color = "var(--muted, #a3a3a3)";
+  panel.appendChild(desc);
+
+  // list container
+  const list = document.createElement("div");
+  list.className = "move-list";
+  list.style.display = "flex";
+  list.style.flexDirection = "column";
+  list.style.gap = "8px";
+
+  // helper to build an option button
+  function buildOption(label, targetGroupId) {
+    const b = document.createElement("button");
+    b.className = "move-option-button";
+    b.textContent = label;
+    b.style.textAlign = "left";
+    b.style.padding = "10px 12px";
+    b.style.borderRadius = "10px";
+    b.style.border = "1px solid rgba(255,255,255,0.03)";
+    b.style.background = "rgba(255,255,255,0.02)";
+    b.style.color = "var(--text, #e6e6e6)";
+    b.style.cursor = "pointer";
+    b.style.fontWeight = "600";
+    b.addEventListener("click", async (e) => {
+      e.stopPropagation();
+      // perform move
+      try {
+        await moveGuestToGroup(personId, currentGroupId, targetGroupId);
+      } catch (err) {
+        console.error("Error moviendo invitado desde modal:", err);
+        alert("No se pudo mover el invitado: " + (err.message || err));
+      } finally {
+        removeExistingMoveMenu();
+      }
+    });
+    return b;
+  }
+
+  // add "Sin grupo" option first
+  list.appendChild(buildOption("Sin grupo", null));
+
+  // loading indicator while fetching groups
+  const loading = document.createElement("div");
+  loading.textContent = "Cargando grupos...";
+  loading.style.color = "var(--muted, #a3a3a3)";
+  loading.style.padding = "6px 12px";
+  list.appendChild(loading);
+
+  panel.appendChild(list);
+  overlay.appendChild(panel);
+  document.body.appendChild(overlay);
+
+  // prevent background scroll while modal open
+  document.body.classList.add("no-scroll");
+
+  // focus management
+  setTimeout(() => {
+    // after appended, focus close button
+    closeBtn.focus();
+  }, 0);
+
+  // fetch groups and populate options (replace loading)
   try {
     const groups = await listGroups();
-    groups.forEach((g) => {
-      const opt = document.createElement("div");
-      opt.className = "move-option";
-      opt.textContent = g.nombre || g.name || g.id;
-      opt.addEventListener("click", async (e) => {
-        e.stopPropagation();
-        await moveGuestToGroup(personId, currentGroupId, g.id);
-        menu.remove();
+    // remove loading node
+    if (loading && loading.parentNode) loading.parentNode.removeChild(loading);
+
+    if (!groups || groups.length === 0) {
+      const none = document.createElement("div");
+      none.textContent = "No hay grupos disponibles";
+      none.style.color = "var(--muted, #a3a3a3)";
+      list.appendChild(none);
+    } else {
+      groups.forEach((g) => {
+        const label = g.nombre || g.name || g.id;
+        const btn = buildOption(label, g.id);
+        // highlight current group by disabling its button
+        if ((currentGroupId || "") === g.id) {
+          btn.style.opacity = "0.7";
+          btn.disabled = false; // still allow reassigning if needed
+        }
+        list.appendChild(btn);
       });
-      menu.appendChild(opt);
-    });
-  } catch (err) {
-    console.error("Error cargando grupos para mover:", err);
-    const errDiv = document.createElement("div");
-    errDiv.className = "move-option disabled";
-    errDiv.textContent = "No se pudieron cargar grupos";
-    menu.appendChild(errDiv);
-  }
-
-  document.body.appendChild(menu);
-
-  // position near button
-  const rect = buttonEl.getBoundingClientRect();
-  menu.style.position = "absolute";
-  menu.style.zIndex = 9999;
-  const top = rect.bottom + 6 + window.scrollY;
-  // default left (button left)
-  let left = rect.left + window.scrollX;
-  menu.style.top = top + "px";
-  menu.style.left = left + "px";
-
-  // measure and if it overflows to the right, move it to the left of the button
-  const mw = menu.offsetWidth || 200; // fallback
-  const viewportRight = window.scrollX + window.innerWidth;
-  if (left + mw > viewportRight - 8) {
-    // place to left: right edge of button minus menu width
-    left = rect.right + window.scrollX - mw;
-    // clamp
-    if (left < 8) left = 8;
-    menu.style.left = left + "px";
-  }
-
-  // close on outside click or blur
-  setTimeout(() => {
-    function onDocClick(ev) {
-      if (!menu.contains(ev.target) && ev.target !== buttonEl) {
-        menu.remove();
-        document.removeEventListener("click", onDocClick);
-      }
     }
-    document.addEventListener("click", onDocClick);
-  }, 0);
+  } catch (err) {
+    console.error("Error cargando grupos para modal mover:", err);
+    if (loading && loading.parentNode) loading.parentNode.removeChild(loading);
+    const errDiv = document.createElement("div");
+    errDiv.textContent = "Error cargando grupos";
+    errDiv.style.color = "var(--muted, #a3a3a3)";
+    list.appendChild(errDiv);
+  }
+
+  // close when clicking outside the panel
+  overlay.addEventListener("click", (ev) => {
+    if (!panel.contains(ev.target)) {
+      removeExistingMoveMenu();
+    }
+  });
+
+  // close on ESC
+  function onEsc(ev) {
+    if (ev.key === "Escape") {
+      removeExistingMoveMenu();
+      document.removeEventListener("keydown", onEsc);
+    }
+  }
+  document.addEventListener("keydown", onEsc);
 }
 
 /**
@@ -946,7 +1052,7 @@ async function moveGuestToGroup(personId, fromGroupId, toGroupId) {
     await populateGuestGroupList();
   } catch (err) {
     console.error("Error moviendo invitado:", err);
-    alert("No se pudo mover el invitado: " + (err.message || err));
+    throw err;
   }
 }
 
