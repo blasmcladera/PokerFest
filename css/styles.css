@@ -795,3 +795,158 @@ body {
     height: 0.8em;
   }
 }
+
+/* =========================
+   Guest counter (contador de invitados visibles)
+   -- MODIFICADO: mucho más grande y centrado horizontalmente
+   ========================= */
+.guest-counter {
+  width: 100%;
+  text-align: center; /* centrado horizontal */
+  font-weight: 800;
+  color: var(--text);
+  margin: 10px 0 18px 0;
+  display: block;
+  /* fuente grande y responsiva */
+  font-size: clamp(20px, 5.5vw, 44px);
+  line-height: 1;
+  letter-spacing: 0.2px;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* El número en rojo y más grueso */
+.guest-counter .count {
+  color: var(--accent); /* usa el color rojo/accent */
+  font-weight: 900;
+  display: inline-block;
+  min-width: 2ch;
+  padding: 0 8px;
+  transform-origin: center;
+}
+
+/* Pequeña animación opcional al cambiar (pulse) */
+.guest-counter.pulse .count {
+  animation: guest-pulse 420ms ease;
+}
+@keyframes guest-pulse {
+  0% {
+    transform: scale(0.92);
+    opacity: 0.75;
+  }
+  50% {
+    transform: scale(1.08);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+/* =========================
+   Toggle all groups button (arriba de la tabla)
+   ========================= */
+.toggle-all-wrap {
+  width: 100%;
+  display: flex;
+  justify-content: center; /* centrar horizontalmente */
+  margin-bottom: 12px;
+}
+
+.btn-toggle-all {
+  background: linear-gradient(
+    90deg,
+    rgba(255, 255, 255, 0.03),
+    rgba(255, 255, 255, 0.02)
+  );
+  border: 1px solid rgba(255, 255, 255, 0.04);
+  padding: 10px 16px;
+  border-radius: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  color: var(--text);
+  font-size: 14px;
+  transition:
+    transform 0.12s ease,
+    box-shadow 0.12s ease;
+}
+.btn-toggle-all:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+}
+
+/* ---------- THREE DOTS (more) button ---------- */
+.btn-more {
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid rgba(255, 255, 255, 0.03);
+  padding: 8px;
+  border-radius: 10px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  margin-left: 8px;
+}
+.btn-more svg {
+  width: 16px;
+  height: 16px;
+  display: block;
+}
+.btn-more:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.6);
+}
+
+/* move menu (floating) */
+.move-menu {
+  background: var(--surface);
+  border: 1px solid rgba(255, 255, 255, 0.04);
+  border-radius: 10px;
+  min-width: 160px;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.6);
+  overflow: hidden;
+  padding: 6px;
+  color: var(--text);
+}
+.move-menu .move-option {
+  padding: 10px 12px;
+  cursor: pointer;
+  border-radius: 8px;
+  font-weight: 600;
+}
+.move-menu .move-option:hover {
+  background: rgba(229, 57, 53, 0.06);
+}
+.move-menu .move-option.disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+/* small variant for guest three-dots */
+.btn-more.guest {
+  padding: 6px;
+}
+
+/* Responsive tweaks: si la actions-row se muestra en columna, el contador se adapta */
+@media (max-width: 720px) {
+  .guest-counter {
+    font-size: clamp(18px, 8vw, 32px);
+    margin-bottom: 8px;
+  }
+  .btn-toggle-all {
+    padding: 8px 12px;
+    font-size: 13px;
+  }
+}
+/* 3 puntitos: iconos blancos / claros para verse en fondo oscuro */
+.btn-more svg circle,
+.btn-more svg path {
+  fill: var(--text);
+  stroke: none;
+}
+
+/* pequeño ajuste de hover para que destaque sobre fondo oscuro */
+.btn-more:hover {
+  background: rgba(255, 255, 255, 0.03);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.45);
+}

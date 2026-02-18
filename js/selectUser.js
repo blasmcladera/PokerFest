@@ -25,13 +25,6 @@ function buildList() {
     li.tabIndex = 0;
     li.innerHTML = `<span>${name}</span>`;
 
-    if (current === name) {
-      const badge = document.createElement("span");
-      badge.className = "badge-selected";
-      badge.textContent = "Seleccionado";
-      li.appendChild(badge);
-    }
-
     li.addEventListener("click", () => chooseName(name));
     li.addEventListener("keydown", (e) => {
       if (e.key === "Enter" || e.key === " ") {

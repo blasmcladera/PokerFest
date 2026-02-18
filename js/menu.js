@@ -1,6 +1,7 @@
 // js/menu.js
 // Tabla de grupos + Sin Grupo + toggling pago + eliminación personas/grupos
-// Añadí: encabezado "Mostrar", select "Ordenar por" (funcional), preservación de filas abiertas
+// Añadí: contador reactivo de invitados visibles, botón "Desplegar todos / Contraer todos"
+// y botón "..." para renombrar grupos / mover invitados.
 // Requiere: groupsService.js, peopleService.js, firebase.js, dbConfig.js
 
 import {
@@ -21,6 +22,7 @@ import {
   where,
   getDocs,
   arrayRemove,
+  arrayUnion,
   increment,
 } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 
@@ -79,6 +81,254 @@ const groupRowMap = {};
 */
 let genderState = "all";
 let paidState = "all";
+
+/* -------------------------
+   Guest counter UI / helpers
+   ------------------------- */
+
+/**
+ * Ensure guest counter element exists and is placed above the actions row.
+ * It inserts a <div id="guestCounter" class="guest-counter">Hay <span class="count">X</span> invitados</div>
+ */
+function ensureGuestCounter() {
+  let counter = document.getElementById("guestCounter");
+  if (counter) return counter;
+
+  // Prefer inserting before the visible ".actions-row" if present
+  const actionsRow = document.querySelector(".actions-row");
+  counter = document.createElement("div");
+  counter.id = "guestCounter";
+  counter.className = "guest-counter";
+  // initial content
+  counter.innerHTML = `Hay <span class="count">0</span> invitados`;
+
+  if (actionsRow && actionsRow.parentNode) {
+    actionsRow.parentNode.insertBefore(counter, actionsRow);
+  } else {
+    // fallback: insert at top of body
+    document.body.insertBefore(counter, document.body.firstChild);
+  }
+  return counter;
+}
+
+/**
+ * Pulse animation helper when count changes
+ */
+let lastGuestCount = null;
+function pulseGuestCounter() {
+  const counter = document.getElementById("guestCounter");
+  if (!counter) return;
+  counter.classList.remove("pulse");
+  // reflow to restart animation
+  void counter.offsetWidth;
+  counter.classList.add("pulse");
+}
+
+/**
+ * Compute number of visible guests according to current filters.
+ * Uses the cached arrays in groupMembersCache and applyFiltersToMembers().
+ */
+function computeVisibleGuestsCount() {
+  let total = 0;
+  Object.keys(groupMembersCache).forEach((gid) => {
+    const arr = groupMembersCache[gid] || [];
+    if (!Array.isArray(arr)) return;
+    const visible = applyFiltersToMembers(arr);
+    total += visible.length;
+  });
+  return total;
+}
+
+/**
+ * Update the counter text to reflect current visible guests.
+ */
+function updateGuestCounterUI() {
+  ensureGuestCounter();
+  const counter = document.getElementById("guestCounter");
+  const count = computeVisibleGuestsCount();
+  const spanHTML = `<span class="count">${count}</span>`;
+  counter.innerHTML = `Hay ${spanHTML} invitados`;
+
+  // small pulse animation on change
+  if (lastGuestCount === null || lastGuestCount !== count) {
+    pulseGuestCounter();
+    lastGuestCount = count;
+  }
+}
+
+/* -------------------------
+   Toggle All Groups Button (arriba de la tabla)
+   ------------------------- */
+
+function ensureToggleAllButton() {
+  let wrap = document.querySelector(".toggle-all-wrap");
+  if (wrap) return wrap;
+
+  // Try to place it above the table wrapper (.table-wrap) if exists
+  const tableWrap = document.querySelector(".table-wrap");
+  wrap = document.createElement("div");
+  wrap.className = "toggle-all-wrap";
+  const btn = document.createElement("button");
+  btn.id = "btnToggleAllGroups";
+  btn.className = "btn-toggle-all";
+  btn.type = "button";
+  btn.addEventListener("click", handleToggleAllGroups);
+  btn.textContent = "Desplegar todos"; // default label
+
+  wrap.appendChild(btn);
+
+  if (tableWrap && tableWrap.parentNode) {
+    tableWrap.parentNode.insertBefore(wrap, tableWrap);
+  } else {
+    // fallback: before groupsTbody's table
+    const tableEl = groupsTbody ? groupsTbody.closest("table") : null;
+    if (tableEl && tableEl.parentNode)
+      tableEl.parentNode.insertBefore(wrap, tableEl);
+    else document.body.insertBefore(wrap, document.body.firstChild);
+  }
+  return wrap;
+}
+
+function updateToggleAllButtonLabel() {
+  ensureToggleAllButton();
+  const btn = document.getElementById("btnToggleAllGroups");
+  if (!btn) return;
+  // If at least one group is expanded -> show "Contraer todos", otherwise "Desplegar todos"
+  const anyExpanded = Object.values(groupRowMap).some(
+    (info) => info && info.trMembers && !info.trMembers.hidden,
+  );
+  btn.textContent = anyExpanded ? "Contraer todos" : "Desplegar todos";
+}
+
+/**
+ * Click handler: si ninguno está desplegado -> desplegar todos.
+ * si al menos uno está desplegado -> contraer todos.
+ */
+function handleToggleAllGroups() {
+  const infos = Object.values(groupRowMap);
+  if (!infos || infos.length === 0) return;
+
+  const anyExpanded = infos.some(
+    (info) => info && info.trMembers && !info.trMembers.hidden,
+  );
+  if (anyExpanded) {
+    // collapse all
+    infos.forEach((info) => {
+      if (!info || !info.trMembers || !info.trGroup) return;
+      if (!info.trMembers.hidden) {
+        // directly collapse without triggering click handlers
+        info.trMembers.hidden = true;
+        info.trGroup.setAttribute("aria-expanded", "false");
+        info.caret.classList.remove("open");
+      }
+    });
+  } else {
+    // expand all
+    infos.forEach((info) => {
+      if (!info || !info.trMembers || !info.trGroup) return;
+      if (info.trMembers.hidden) {
+        // render members from cache and show (reuse rendering logic)
+        const groupId = info.trGroup.getAttribute("data-group-id");
+        const membersLocal = groupMembersCache[groupId] || [];
+        const visibleMembers = applyFiltersToMembers(membersLocal);
+        const container = info.membersContainer;
+        container.innerHTML = "";
+        const ul = document.createElement("ul");
+        ul.className = "member-list";
+        visibleMembers.forEach((m) => {
+          const li = document.createElement("li");
+          li.className = "member-item";
+          const left = document.createElement("div");
+          left.className = "member-left";
+          const nameSpan = document.createElement("span");
+          nameSpan.className = "member-name";
+          nameSpan.textContent = m.nombre || m.name || m.id;
+          const genderBadge = document.createElement("span");
+          genderBadge.className =
+            "badge badge-gender " +
+            (m.genero === "hombre"
+              ? "male"
+              : m.genero === "mujer"
+                ? "female"
+                : "");
+          genderBadge.textContent = m.genero
+            ? m.genero === "hombre"
+              ? "Hombre"
+              : "Mujer"
+            : "—";
+          const paidBadge = document.createElement("span");
+          paidBadge.className =
+            "badge badge-paid " + (m.pagado ? "paid" : "unpaid");
+          paidBadge.textContent = m.pagado ? "Pagó" : "No pagó";
+          paidBadge.style.cursor = "pointer";
+
+          paidBadge.addEventListener("click", async (ev) => {
+            ev.stopPropagation();
+            const current = !!m.pagado;
+            const allMembers = groupMembersCache[groupId] || [];
+            const idx = allMembers.findIndex((x) => x.id === m.id);
+            if (idx >= 0) allMembers[idx].pagado = !current;
+            m.pagado = !current;
+            paidBadge.classList.toggle("paid", m.pagado);
+            paidBadge.classList.toggle("unpaid", !m.pagado);
+            paidBadge.textContent = m.pagado ? "Pagó" : "No pagó";
+            const newVisible = applyFiltersToMembers(
+              groupMembersCache[groupId] || [],
+            );
+            info.tdCounts.textContent = `${newVisible.filter((x) => !!x.pagado).length} / ${newVisible.length}`;
+            try {
+              await togglePersonPayment(m.id, current, groupId, info.tdCounts);
+            } catch (e) {
+              console.error(e);
+            }
+          });
+
+          left.appendChild(nameSpan);
+          left.appendChild(genderBadge);
+          left.appendChild(paidBadge);
+
+          const right = document.createElement("div");
+          right.className = "member-right";
+
+          // three-dots move button for guest (append BEFORE delete so appears to the left)
+          const btnMoreGuest = document.createElement("button");
+          btnMoreGuest.className = "btn-more guest";
+          btnMoreGuest.title = "Mover invitado";
+          btnMoreGuest.innerHTML = `<svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><circle cx="5" cy="12" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="19" cy="12" r="2"/></svg>`;
+          btnMoreGuest.addEventListener("click", (ev) => {
+            ev.stopPropagation();
+            showMoveGuestMenu(btnMoreGuest, m.id, groupId);
+          });
+          right.appendChild(btnMoreGuest);
+
+          const btnDelPerson = document.createElement("button");
+          btnDelPerson.className = "btn-trash";
+          btnDelPerson.title = "Eliminar invitado";
+          btnDelPerson.innerHTML = `<svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path class="icon-path" d="M9 3h6l1 1h4v2H4V4h4l1-1zm-1 6v9a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2V9H8z"/></svg>`;
+          btnDelPerson.addEventListener("click", (ev) => {
+            ev.stopPropagation();
+            deletePerson(m.id, groupId);
+          });
+          right.appendChild(btnDelPerson);
+
+          li.appendChild(left);
+          li.appendChild(right);
+          ul.appendChild(li);
+        });
+        container.appendChild(ul);
+
+        info.trMembers.hidden = false;
+        info.trGroup.setAttribute("aria-expanded", "true");
+        info.caret.classList.add("open");
+      }
+    });
+  }
+
+  // Update label after toggle
+  updateToggleAllButtonLabel();
+  // update guest counter and ticks if needed
+  updateAllCountsAndOpenLists();
+}
 
 /* -------------------------
    Modal helpers
@@ -279,7 +529,7 @@ formCreateGroup.addEventListener("submit", async (e) => {
   const responsable = inputGroupResponsible.value
     ? inputGroupResponsible.value.trim()
     : "";
-  const confirmado = !!inputGroupConfirmed.checked;
+  const confirmado = false;
   if (!nombre) {
     alert("El nombre del grupo es obligatorio.");
     return;
@@ -526,8 +776,185 @@ async function deleteGroup(groupId) {
 }
 
 /* -------------------------
+   Group rename & Move guest helpers
+   ------------------------- */
+
+/**
+ * Prompt to rename a group (updates DB and re-renders)
+ */
+async function promptRenameGroup(groupId, currentName) {
+  const nuevo = prompt("Nuevo nombre para el grupo:", currentName || "");
+  if (nuevo === null) return; // cancel
+  const clean = (nuevo || "").trim();
+  if (!clean) {
+    alert("El nombre no puede quedar vacío.");
+    return;
+  }
+  try {
+    const gRef = doc(db, COLECCION_GRUPO, groupId);
+    await updateDoc(gRef, { nombre: clean });
+    await renderGroupsTable();
+    await populateGuestGroupList();
+  } catch (err) {
+    console.error("Error renombrando grupo:", err);
+    alert("No se pudo renombrar el grupo: " + (err.message || err));
+  }
+}
+
+/**
+ * Remove any existing floating move menu
+ */
+function removeExistingMoveMenu() {
+  const existing = document.getElementById("moveMenu");
+  if (existing) existing.remove();
+}
+
+/**
+ * Show a small floating menu to move a guest to another group.
+ * Positions to the left if there isn't enough room on the right.
+ */
+async function showMoveGuestMenu(buttonEl, personId, currentGroupId) {
+  // remove any existing menu
+  removeExistingMoveMenu();
+
+  const menu = document.createElement("div");
+  menu.id = "moveMenu";
+  menu.className = "move-menu";
+  menu.tabIndex = -1;
+
+  // build options
+  const optSin = document.createElement("div");
+  optSin.className = "move-option";
+  optSin.textContent = "Sin grupo";
+  optSin.addEventListener("click", async (e) => {
+    e.stopPropagation();
+    await moveGuestToGroup(personId, currentGroupId, null);
+    menu.remove();
+  });
+  menu.appendChild(optSin);
+
+  try {
+    const groups = await listGroups();
+    groups.forEach((g) => {
+      const opt = document.createElement("div");
+      opt.className = "move-option";
+      opt.textContent = g.nombre || g.name || g.id;
+      opt.addEventListener("click", async (e) => {
+        e.stopPropagation();
+        await moveGuestToGroup(personId, currentGroupId, g.id);
+        menu.remove();
+      });
+      menu.appendChild(opt);
+    });
+  } catch (err) {
+    console.error("Error cargando grupos para mover:", err);
+    const errDiv = document.createElement("div");
+    errDiv.className = "move-option disabled";
+    errDiv.textContent = "No se pudieron cargar grupos";
+    menu.appendChild(errDiv);
+  }
+
+  document.body.appendChild(menu);
+
+  // position near button
+  const rect = buttonEl.getBoundingClientRect();
+  menu.style.position = "absolute";
+  menu.style.zIndex = 9999;
+  const top = rect.bottom + 6 + window.scrollY;
+  // default left (button left)
+  let left = rect.left + window.scrollX;
+  menu.style.top = top + "px";
+  menu.style.left = left + "px";
+
+  // measure and if it overflows to the right, move it to the left of the button
+  const mw = menu.offsetWidth || 200; // fallback
+  const viewportRight = window.scrollX + window.innerWidth;
+  if (left + mw > viewportRight - 8) {
+    // place to left: right edge of button minus menu width
+    left = rect.right + window.scrollX - mw;
+    // clamp
+    if (left < 8) left = 8;
+    menu.style.left = left + "px";
+  }
+
+  // close on outside click or blur
+  setTimeout(() => {
+    function onDocClick(ev) {
+      if (!menu.contains(ev.target) && ev.target !== buttonEl) {
+        menu.remove();
+        document.removeEventListener("click", onDocClick);
+      }
+    }
+    document.addEventListener("click", onDocClick);
+  }, 0);
+}
+
+/**
+ * Move guest between groups (updates person doc and group member arrays)
+ */
+async function moveGuestToGroup(personId, fromGroupId, toGroupId) {
+  try {
+    const pRef = doc(db, COLECCION_PERSONA, personId);
+    await updateDoc(pRef, { grupoId: toGroupId || null });
+
+    // update old group counts/members
+    if (fromGroupId && fromGroupId !== "sin-grupo") {
+      try {
+        const gFrom = doc(db, COLECCION_GRUPO, fromGroupId);
+        await updateDoc(gFrom, {
+          miembros: arrayRemove(personId),
+          cantidadMiembros: increment(-1),
+        });
+      } catch (e) {
+        console.warn("No se pudo actualizar grupo origen en move:", e);
+      }
+    }
+    // update new group
+    if (toGroupId && toGroupId !== "sin-grupo") {
+      try {
+        const gTo = doc(db, COLECCION_GRUPO, toGroupId);
+        await updateDoc(gTo, {
+          miembros: arrayUnion(personId),
+          cantidadMiembros: increment(1),
+        });
+      } catch (e) {
+        console.warn("No se pudo actualizar grupo destino en move:", e);
+      }
+    }
+
+    // update caches locally
+    if (fromGroupId && groupMembersCache[fromGroupId]) {
+      groupMembersCache[fromGroupId] = groupMembersCache[fromGroupId].filter(
+        (p) => p.id !== personId,
+      );
+    }
+    // best-effort refresh sin-grupo cache
+    if (!toGroupId) {
+      try {
+        const col = collection(db, COLECCION_PERSONA);
+        const q = query(col, where("grupoId", "==", null));
+        const snap = await getDocs(q);
+        const arr = [];
+        snap.forEach((d) => arr.push({ id: d.id, ...d.data() }));
+        groupMembersCache["sin-grupo"] = arr;
+      } catch (e) {
+        // ignore
+      }
+    }
+
+    await renderGroupsTable();
+    await populateGuestGroupList();
+  } catch (err) {
+    console.error("Error moviendo invitado:", err);
+    alert("No se pudo mover el invitado: " + (err.message || err));
+  }
+}
+
+/* -------------------------
    updateAllCountsAndOpenLists (in-place update without full rerender)
    — also updates the "all paid" tick icon visibility
+   — ahora también actualiza el contador global de invitados visibles
+   — y actualiza label del botón toggle-all
 */
 function updateAllCountsAndOpenLists() {
   Object.keys(groupRowMap).forEach((groupId) => {
@@ -601,6 +1028,18 @@ function updateAllCountsAndOpenLists() {
 
         const right = document.createElement("div");
         right.className = "member-right";
+
+        // three-dots move button for guest (append BEFORE delete)
+        const btnMoreGuest = document.createElement("button");
+        btnMoreGuest.className = "btn-more guest";
+        btnMoreGuest.title = "Mover invitado";
+        btnMoreGuest.innerHTML = `<svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><circle cx="5" cy="12" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="19" cy="12" r="2"/></svg>`;
+        btnMoreGuest.addEventListener("click", (ev) => {
+          ev.stopPropagation();
+          showMoveGuestMenu(btnMoreGuest, m.id, groupId);
+        });
+        right.appendChild(btnMoreGuest);
+
         const btnDelPerson = document.createElement("button");
         btnDelPerson.className = "btn-trash";
         btnDelPerson.title = "Eliminar invitado";
@@ -618,6 +1057,12 @@ function updateAllCountsAndOpenLists() {
       container.appendChild(ul);
     }
   });
+
+  // Update global guest counter (visible count)
+  updateGuestCounterUI();
+
+  // Update toggle-all button label
+  updateToggleAllButtonLabel();
 }
 
 /* -------------------------
@@ -702,6 +1147,7 @@ async function renderGroupsTable() {
       (g, i) => (groupMembersCache[g.id] = membersArrays[i] || []),
     );
     if (ungrouped.length > 0) groupMembersCache["sin-grupo"] = ungrouped;
+    else delete groupMembersCache["sin-grupo"];
 
     // prepare groups to render and sort them using current sortSelect and visible counts
     const groupsToRenderRaw = groups.slice();
@@ -762,6 +1208,21 @@ async function renderGroupsTable() {
       const tdActions = document.createElement("td");
       tdActions.className = "actions-col";
       tdActions.style.textAlign = "right";
+
+      // three-dots button for group (rename) -> append BEFORE delete so it's left of delete
+      if (g.id !== "sin-grupo") {
+        const btnMoreGroup = document.createElement("button");
+        btnMoreGroup.className = "btn-more group";
+        btnMoreGroup.title = "Configuración";
+        btnMoreGroup.innerHTML = `<svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><circle cx="5" cy="12" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="19" cy="12" r="2"/></svg>`;
+        btnMoreGroup.addEventListener("click", (ev) => {
+          ev.stopPropagation(); // prevent row toggle
+          promptRenameGroup(g.id, g.nombre || g.name || "");
+        });
+        tdActions.appendChild(btnMoreGroup);
+      }
+
+      // Delete button for group (if not sin-grupo)
       if (g.id !== "sin-grupo") {
         const btnDelGroup = document.createElement("button");
         btnDelGroup.className = "btn-trash";
@@ -773,6 +1234,7 @@ async function renderGroupsTable() {
         });
         tdActions.appendChild(btnDelGroup);
       }
+
       trGroup.appendChild(tdActions);
 
       groupsTbody.appendChild(trGroup);
@@ -859,6 +1321,18 @@ async function renderGroupsTable() {
 
           const right = document.createElement("div");
           right.className = "member-right";
+
+          // three-dots move button for guest (append BEFORE delete)
+          const btnMoreGuest = document.createElement("button");
+          btnMoreGuest.className = "btn-more guest";
+          btnMoreGuest.title = "Mover invitado";
+          btnMoreGuest.innerHTML = `<svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><circle cx="5" cy="12" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="19" cy="12" r="2"/></svg>`;
+          btnMoreGuest.addEventListener("click", (ev) => {
+            ev.stopPropagation();
+            showMoveGuestMenu(btnMoreGuest, m.id, g.id);
+          });
+          right.appendChild(btnMoreGuest);
+
           const btnDelPerson = document.createElement("button");
           btnDelPerson.className = "btn-trash";
           btnDelPerson.title = "Eliminar invitado";
@@ -946,6 +1420,18 @@ async function renderGroupsTable() {
 
             const right = document.createElement("div");
             right.className = "member-right";
+
+            // three-dots move button for guest (append BEFORE delete)
+            const btnMoreGuest = document.createElement("button");
+            btnMoreGuest.className = "btn-more guest";
+            btnMoreGuest.title = "Mover invitado";
+            btnMoreGuest.innerHTML = `<svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><circle cx="5" cy="12" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="19" cy="12" r="2"/></svg>`;
+            btnMoreGuest.addEventListener("click", (ev) => {
+              ev.stopPropagation();
+              showMoveGuestMenu(btnMoreGuest, m.id, g.id);
+            });
+            right.appendChild(btnMoreGuest);
+
             const btnDelPerson = document.createElement("button");
             btnDelPerson.className = "btn-trash";
             btnDelPerson.title = "Eliminar invitado";
@@ -965,12 +1451,22 @@ async function renderGroupsTable() {
           trMembers.hidden = false;
           trMembers.scrollIntoView({ behavior: "smooth", block: "nearest" });
         }
+
+        // update toggle-all button label whenever a single row toggles
+        updateToggleAllButtonLabel();
       });
     } // end for
   } catch (err) {
     console.error("Error cargando tabla de grupos:", err);
     groupsTbody.innerHTML = `<tr><td colspan="4">Error cargando datos</td></tr>`;
   }
+
+  // Update guest counter after we populate/refresh caches
+  updateGuestCounterUI();
+
+  // Ensure toggle-all button exists and has correct label
+  ensureToggleAllButton();
+  updateToggleAllButtonLabel();
 }
 
 /* -------------------------
@@ -1012,4 +1508,6 @@ sortSelect.addEventListener("change", async () => {
   updateFilterButtonsUI();
   await populateGuestGroupList();
   await renderGroupsTable();
+  ensureGuestCounter(); // ensure counter exists on init
+  ensureToggleAllButton(); // ensure toggle all button exists on init
 })();
